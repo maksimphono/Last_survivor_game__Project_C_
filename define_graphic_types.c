@@ -1,25 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <stdarg.h>
-#include <windows.h>
+#include "engine_v1.c"
+#include "constants.c"
 
-#include <graphics.h>
+//#include <graphics.h>
 #include <conio.h>
 #include <time.h>
 
-#define MAX_INT 4294967296
-#define MAX_IMAGE_NUM 19
-#define MAX_ENTITY_NUM 19
-#define MAX_FIGURE_NUM 19
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
-#define BITBLACK 4278190080
-#define BITWHITE 4294967295
-
 LPCTSTR MAIN_BG_MODEL_PATH = L"assets\\main_bg_01.png";
-//LPCTSTR MAIN_CH_MODEL_PATH = L"assets\\main_character_transparent_3.png";
 LPCTSTR MAIN_CH_MODEL_PATH = L"assets\\test_transp.png";
 
 typedef unsigned long long ull;
@@ -41,6 +27,7 @@ IMAGE* setupImage(unsigned* img_index) {
 unsigned null_image;
 extern IMAGE main_background = *setupImage(&null_image);
 extern DWORD* bg = NULL;
+extern DWORD* bg_src = NULL;
 
 typedef struct Figure {
 	/*
@@ -57,6 +44,7 @@ typedef struct Entity {
 	/*
 	This is abstraction structure, that represents 'Entity'. It holds coordinates and figure, that figure will be rendered on canvas
 	*/
+	int lower_edge;
 	Figure* figure;
 	int center_x;
 	int center_y;
@@ -74,6 +62,14 @@ extern int entnum = 0;
 
 void addEnt(Entity* ent) {
 	entarray[entnum++] = ent;
+}
+
+int min_lower_edge(const void* ent_1, const void* ent_2) {
+	Entity** an = (Entity**)malloc(sizeof(Entity*));
+	Entity** bn = (Entity**)malloc(sizeof(Entity*));
+	memmove(an, ent_1, sizeof(Entity**));
+	memmove(bn, ent_2, sizeof(Entity**));
+	return fabs((*an)->lower_edge - (*bn)->lower_edge);
 }
 
 Figure* init_figure(int x, int y, LPCTSTR path_to_image) {
@@ -100,6 +96,9 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	self->figure = init_figure(x, y, path_to_image);
 	self->X = x;
 	self->Y = y;
+	self->center_x = x + self->figure->width / 2;
+	self->center_x = x + self->figure->height / 2;
+	self->lower_edge = y + self->figure->height;
 	return self;
 }
 
@@ -122,7 +121,7 @@ void put_transparent_picture(int dstx, int dsty, IMAGE* img, COLORREF color) { /
 		screen_width = GetWorkingImage()->getwidth();
 	for (int i = 0; i < image_width; i++)
 		for (int j = 0; j < image_height; j++) {
-			if (src[j * image_width + i] != color) {
+			if (src[j * image_width + i] != BITWHITE) {
 				ull real_pixel_pos = (j + dsty) * screen_width + i + dstx;
 				ull image_pixel_pos = j * image_width + i;
 				if (dsty < 0)
@@ -132,23 +131,48 @@ void put_transparent_picture(int dstx, int dsty, IMAGE* img, COLORREF color) { /
 				dst[real_pixel_pos] = src[image_pixel_pos];
 			}
 		}
-	if (!GetWorkingImage())
-		FlushBatchDraw();
 }
 
-void move_transparent_image(int dx, int dy, Figure* fig, COLORREF color) {
+void renderAll(const char*);
+
+void sortEnt(int main_ch_index) {
+	Entity* temp = (Entity*)malloc(sizeof(Entity));
+	register int steps = 0;
+	for (int i = 1; i < entnum; i++) {
+		if (steps) i += steps - 1;
+		steps = 0;
+		while (i && entarray[i]->lower_edge < entarray[i - 1]->lower_edge) {
+			temp = entarray[i];
+			entarray[i] = entarray[i - 1];
+			entarray[i - 1] = temp;
+			//if (*object == &main_ch)
+			i--;
+			steps++;
+		}
+	}
+}
+
+//bool sorted = false;
+
+DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, const char* flag = "first") {
+	static bool sorted = false;
 	DWORD* src = GetImageBuffer(&images[fig->img_index]);
 	DWORD* dst = GetImageBuffer(GetWorkingImage());
 	int dstx = fig->X, dsty = fig->Y;
 	int image_width = images[fig->img_index].getwidth(), image_height = images[fig->img_index].getheight(), screen_width;
 	fig->X += dx;
 	fig->Y += dy;
-	
+
 	if (GetWorkingImage() == NULL)
 		screen_width = getwidth();
 	else
 		screen_width = GetWorkingImage()->getwidth();
-	
+
+	if ((dy || dx) && 1) {
+		sortEnt(0); // sort the entity array, because i need first render objects, those lays lower on the screen
+	}
+
+	renderAll(flag);
 	switch (dx > 0) {
 	case 1: // dx > 0
 		for (int j = 0; j < image_height; j++) {
@@ -183,10 +207,10 @@ void move_transparent_image(int dx, int dy, Figure* fig, COLORREF color) {
 				dst[real_pixel_pos] = bg[real_pixel_pos];
 				real_pixel_pos = (dsty + image_height - p - 1) * screen_width + dstx + i;
 				dst[real_pixel_pos] = bg[real_pixel_pos];
-				//dst[real_pixel_pos - 2] = bg[real_pixel_pos - 2];
 			}
 		}
 	}
+	
 	for (int i = 0; i < image_width; i++) {
 		for (int j = 0; j < image_height; j++) {
 			ull real_pixel_pos = (j + dsty + dy) * screen_width + i + dstx + dx;
@@ -203,6 +227,7 @@ void move_transparent_image(int dx, int dy, Figure* fig, COLORREF color) {
 			}
 		}
 	}
+	return dst;
 	//memmove(bg, dst, screen_width * SCREEN_HEIGHT * sizeof(DWORD));
 }
 
@@ -248,15 +273,21 @@ void move(GRAPHIC_TYPE type, ...) {
 		Entity* ent = va_arg(arguments, Entity*);
 		dx = va_arg(arguments, int);
 		dy = va_arg(arguments, int);
+		ent->lower_edge += dy;
 		move(FIGURE, ent->figure, dx, dy);
 		break;
 	}
 	va_end(arguments);
 }
 
-void renderAll() {
-	putimage(0, 0, &main_background);
-	for (Entity** object = entarray; object != entarray + entnum; object++) {
-		move(ENTITY, *object, 0, 0);
+void renderAll(const char* flag = "") {
+	//putimage(0, 0, &main_background);
+	DWORD* dst;
+	if (flag == "first") {
+		memmove(bg, bg_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
+		for (Entity** object = entarray; object != entarray + entnum; object++) {
+			dst = move_transparent_image(0, 0, (*object)->figure, BLACK, "");
+			memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
+		}
 	}
 }

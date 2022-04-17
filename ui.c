@@ -10,7 +10,7 @@ void button_press(char btn, Entity* main_ch) {
 		Manages control buttons('W', 'A', 'S', 'D')
 	*/
 	static int x = 0, y = 0;
-	int step = 2;
+	int step = 3;
 	switch (btn) {
 	case 'W':
 		move(ENTITY, main_ch, 0, -step);
@@ -28,7 +28,7 @@ void button_press(char btn, Entity* main_ch) {
 		move(ENTITY, entarray[1], 0, step);
 		break;
 	case 'R':
-		renderAll();
+		renderAll("first");
 		break;
 	case 'C':
 		setPosition(ENTITY, main_ch, 200, 200);
@@ -69,28 +69,38 @@ void mainloop(const char* arg) {
 	
 	registerEntity(20, 15, L"assets\\box1.png");
 	registerEntity(200, 150, L"assets\\plant.png");
+	registerEntity(400, 150, L"assets\\plant.png");
+	registerEntity(270, 180, L"assets\\plant.png");
+	registerEntity(310, 190, L"assets\\plant.png");
+	registerEntity(20, 540, L"assets\\plant.png");
 	registerEntity(100, 30, L"assets\\garage.png");
-	registerEntity(100, 100, MAIN_CH_MODEL_PATH);
-	Entity* main_ch = entarray[3];
+	Entity main_ch = *init_entity(100, 100, MAIN_CH_MODEL_PATH);
+	addEnt(&main_ch);
 
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT); //		create main window and put image on it
 	loadimage(&main_background, MAIN_BG_MODEL_PATH);
 	bg = GetImageBuffer(&main_background);
+	bg_src = GetImageBuffer(&main_background);
+	Figure* main_bg_f = init_figure(0, 0, MAIN_BG_MODEL_PATH);
 	
 	BeginBatchDraw();
 	SetWorkingImage();
 	putimage(0, 0, &main_background);
-	renderAll();
+	renderAll("first");
 	for (;; tick++) {
 		if (tick == MAX_INT) tick = 0;
 		 //						 set working image as main window
 		 //		 render background
 		 // 	//setcliprgn(hrgn);// new
 		
+		move_transparent_image(0, 0, main_bg_f, WHITE);
 		peekmessage(&message_key, EM_MOUSE | EM_KEY);//			get event
-		event_manager(&message_key, main_ch); //				manage event
+		event_manager(&message_key, &main_ch); //				manage event
+		
+		//move(FIGURE, (&main_ch)->figure, 0, 0);
+		renderAll("first");
 		FlushBatchDraw();
-		Sleep(sleeptime);
+		//Sleep(sleeptime);
 	}
 	EndBatchDraw();
 	closegraph();
