@@ -1,7 +1,7 @@
 #include "define_graphic_types.c"
 #pragma warning (disable : 4996)
 
-
+int step = 2;
 const int sleeptime = 1;
 unsigned tick = 0;
 
@@ -10,7 +10,7 @@ void button_press(char btn, Entity* main_ch) {
 		Manages control buttons('W', 'A', 'S', 'D')
 	*/
 	static int x = 0, y = 0;
-	int step = 3;
+
 	switch (btn) {
 	case 'W':
 		move(ENTITY, main_ch, 0, -step);
@@ -33,6 +33,9 @@ void button_press(char btn, Entity* main_ch) {
 	case 'C':
 		setPosition(ENTITY, main_ch, 200, 200);
 		break;
+	case 'B':
+		show_hide_all_bones();
+		break;
 	}
 }
 
@@ -52,29 +55,33 @@ void putcircle(int x, int y, bool pressed) {
 	}
 }
 
-void event_manager(ExMessage* message, Entity* main_ch) { // function, that manage all events from mainloop
+void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* main_ch) { // function, that manage all events from mainloop
 	static int prev_cords[2] = {};
 	if (message->message == WM_KEYDOWN)
 		button_press(message->vkcode, main_ch);
 
-	if (message->vkcode == 128 && message->message == WM_MOUSEMOVE) //  user moves the mouse
-		putcircle(message->x, message->y, 1);
+	if (mouse != NULL) {
+		putcircle(mouse->x, mouse->y, 1);
+	}
 }
 
 void mainloop(const char* arg) {
-	ExMessage message_mouse;
+	MOUSEMSG message_mouse;
 	ExMessage message_key;
 
 	// creating entities
 	
-	registerEntity(20, 15, L"assets\\box1.png");
-	registerEntity(200, 150, L"assets\\plant.png");
-	registerEntity(400, 150, L"assets\\plant.png");
-	registerEntity(270, 180, L"assets\\plant.png");
-	registerEntity(310, 190, L"assets\\plant.png");
-	registerEntity(20, 540, L"assets\\plant.png");
-	registerEntity(100, 30, L"assets\\garage.png");
+	registerEntity(20, 15, L"assets\\box1.png", "without prop");
+	registerEntity(200, 150, L"assets\\plant.png", "without prop");
+	registerEntity(400, 150, L"assets\\plant.png", "without prop");
+	registerEntity(270, 180, L"assets\\plant.png", "without prop");
+	registerEntity(310, 190, L"assets\\plant.png", "without prop");
+	registerEntity(20, 540, L"assets\\plant.png", "without prop");
+	registerEntity(100, 30, L"assets\\garage.png", "without prop");
+	registerEntity(400, 300, L"assets\\mushroom.png", "Prop:", 
+		init_varray(1, 400, 305), init_varray(1, 400, 325), init_varray(1, 360, 315), init_varray(1, 450, 315));
 	Entity main_ch = *init_entity(100, 100, MAIN_CH_MODEL_PATH);
+	setProp(&main_ch, *init_varray(1, 120, 100), *init_varray(1, 120, 140), *init_varray(1, 100, 120), *init_varray(1, 140, 120));
 	addEnt(&main_ch);
 
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT); //		create main window and put image on it
@@ -93,12 +100,16 @@ void mainloop(const char* arg) {
 		 //		 render background
 		 // 	//setcliprgn(hrgn);// new
 		
-		move_transparent_image(0, 0, main_bg_f, WHITE);
-		peekmessage(&message_key, EM_MOUSE | EM_KEY);//			get event
-		event_manager(&message_key, &main_ch); //				manage event
+		//message_key.vkcode = '0';
+		move_transparent_image(0, 0, main_bg_f, WHITE, true);
 		
+		peekmessage(&message_key, EM_KEY);//			get event
+		
+		event_manager(&message_key, &message_mouse, &main_ch); //				manage event
+		if (message_key.vkcode == 'B') message_key.vkcode = 128;
+
 		//move(FIGURE, (&main_ch)->figure, 0, 0);
-		renderAll("first");
+		renderAll(true);
 		FlushBatchDraw();
 		//Sleep(sleeptime);
 	}

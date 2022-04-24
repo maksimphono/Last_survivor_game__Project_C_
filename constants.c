@@ -1,7 +1,7 @@
 #include <graphics.h>
 
 #define MAX_INT 4294967296
-#define MAX_IMAGE_NUM 19
+#define MAX_IMAGE_NUM 29
 #define MAX_ENTITY_NUM 19
 #define MAX_FIGURE_NUM 19
 #define SCREEN_WIDTH 600
