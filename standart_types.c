@@ -19,6 +19,8 @@ typedef struct {
 } Array;
 
 Array* init_array(STANDART_TYPE type, unsigned len) {
+	/*
+	*/
 	static Array* self;
 	self = (Array*)malloc(sizeof(Array));
 	self->length = 0;
@@ -45,4 +47,40 @@ void append(Array* self, ...) {
 		break;
 	}
 	va_end(argument);
+}
+
+void* pop(Array* self, ...) {
+	va_list argument;
+	va_start(argument, self);
+	union {
+		int iresult;
+		char cresult;
+		double dresult;
+		string sresult;
+	};
+	switch (self->type) {
+	case INTEGER:
+		iresult = va_arg(argument, int);
+		break;
+	case CHARACTER:
+		self->carray[self->length++] = va_arg(argument, char);
+		break;
+	case DBLE:
+		self->darray[self->length++] = va_arg(argument, double);
+		break;
+	case STR:
+		string new_str;
+		strcpy(self->sarray[self->length++], va_arg(argument, string));
+		break;
+	}
+	va_end(argument);
+	return NULL;
+}
+
+double min2(double a, double b) {
+	return (a > b)?b:a;
+}
+
+double max2(double a, double b) {
+	return (a < b)?b:a;
 }

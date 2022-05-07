@@ -1,5 +1,6 @@
 #include "constants.c"
 #include "standart_types.c"
+#include "phisics_type.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,21 +13,9 @@
 #define _X 0
 #define _Y 1
 
-const double EPS = 0.01;
+const double EPS = 0.001;
 const double PI = 3.141592653589793;
-
-typedef enum {VERTEX, VARRAY, LINE, PROP} PHISICS_TYPE;
-typedef enum {CIRCLE, FUNCTION, LINES} COLLISION_TYPE;
 typedef enum {NOCOLLIDE, UP, DOWN, LEFT, RIGHT} COLLISION_SIDE;
-
-
-typedef struct {
-	/*
-	Abstraction structure, that represents collision Vertex
-	*/
-	int X;
-	int Y;
-} Vertex;
 
 Vertex* init_vertex(int x, int y) {
 	/*
@@ -48,15 +37,6 @@ void del_vertex(Vertex* self) {
 	free(self);
 }
 
-typedef struct Vector {
-	Vertex* p1;
-	Vertex* p2;
-	double length;
-	double plain[2];
-	Vector* next;
-	Vector* prev;
-} Vector;
-
 Vector* init_vector(int x1, int y1, int x2, int y2) {
 	/*
 	Constructor for structure 'Vector'
@@ -65,9 +45,6 @@ Vector* init_vector(int x1, int y1, int x2, int y2) {
 	self = (Vector*)malloc(sizeof(Vector));
 	self->p1 = init_vertex(x1, y1);
 	self->p2 = init_vertex(x2, y2);
-	//self->length = (double*)malloc(sizeof(double));
-	//self->plain[_X] = (double*)malloc(sizeof(double));
-	//self->plain[_Y] = (double*)malloc(sizeof(double));
 	self->length = sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2));
 	self->plain[_X] = x1 - x2;
 	self->plain[_Y] = y1 - y2;
@@ -83,134 +60,50 @@ void del_vector(Vector* self) {
 	del_vertex(self->p1);
 	del_vertex(self->p2);
 	
+	self = (Vector*)realloc(self, 1);
 	//self = (Vector*)malloc(sizeof(self));
-	//free(self);
+	free(self);
 }
 
-typedef struct {
-	Vector* vectors;
-	unsigned length;
-} VectorArr;
+void addVector(VectorArr* self, int x1, int y1, int x2, int y2);
 
-VectorArr* init_vectorarr() {
+VectorArr* init_vectorarr(int n, ...) {
 	static VectorArr* self;
 	self = (VectorArr*)malloc(sizeof(VectorArr));
+	va_list arguments;
+	int x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 	self->vectors = (Vector*)malloc(sizeof(Vector));
 	self->length = 0;
+	va_start(arguments, n);
+	if (n) {
+		for (int i = 0; i < n; i++) {
+			x1 = va_arg(arguments, int);
+			y1 = va_arg(arguments, int);
+			x2 = va_arg(arguments, int);
+			y2 = va_arg(arguments, int);
+			addVector(self, x1, y1, x2, y2);
+		}
+	}
+	va_end(arguments);
 	return self;
 }
 
-void append(VectorArr* self, Vector* vector) {
+void del_vectorarr(VectorArr* self) {
+	for (int i = 0; i < self->length; i++) {
+		del_vector(&self->vectors[i]);
+	}
+	self = (VectorArr*)realloc(self, 1);
+	free(self);
+}
+
+void addVector(VectorArr* self, int x1, int x2, int y1, int y2) {
+	Vector* vector = init_vector(x1, x2, y1, y2);
 	self->vectors = (Vector*)realloc(self->vectors, sizeof(Vector) * (1 + self->length));
 	self->vectors[self->length++] = *vector;
 }
 
-typedef struct VertexArr {
-	/*
-	Abstract structure, that represents array of vetrexes
-	*/
-	Vertex* vertexes;
-	Vertex** content_ptr;
-	unsigned length;
-} VertexArr;
-
-void addVertex(VertexArr* self, int x, int y) {
-	/*
-	Creates and adds new vertex to array using these coordinates
-	*/
-	self->vertexes[self->length++] = *init_vertex(x, y);
-}
-
-VertexArr* init_varray(int n, ...) {
-	/*
-	Constructor for structure 'VertexArr'
-	*/
-	static VertexArr* self;
-	self = (VertexArr*)malloc(sizeof(VertexArr));
-	self->length = 0;
-	self->vertexes = (Vertex*)malloc(MAX_VERTEX_ARR_LEN * sizeof(Vertex));
-	if (n) {
-		va_list verteces;
-		va_start(verteces, n);
-		for (int i = 0; i < n; i++) {
-			int X = va_arg(verteces, int);
-			int Y = va_arg(verteces, int);
-			addVertex(self, X, Y);
-		}
-		va_end(verteces);
-	}
-	self->content_ptr = &self->vertexes;
-	return self;
-}
-
-void del_varray(VertexArr* self) {
-	for (Vertex* vertex = self->vertexes; vertex != self->vertexes + self->length; vertex++) {
-		del_vertex(vertex);
-	}
-	static Vertex** vertex_arr = &self->vertexes;
-	self->length = 0;
-	self = (VertexArr*)malloc(sizeof(self));
-	free(self);
-}
-
-Vertex* get(VertexArr* self, unsigned index) {
-	return &self->vertexes[index];
-}
-
-typedef struct Prop {
-	/*
-	Abstract structure, that represents phisics object. It has 4 vertex arrays, that represents 
-	upper, lower, left and right collision Vertexes. 'center' represents the point at the center of the object.
-	*/
-	COLLISION_TYPE collision_type; // Prop's collision model can be represented certain ways: 
-	//	1) CIRCLE (most quick check, because i just check distance to the center of the target prop)
-	//	2) FUNCTION (i just have to check, if collision model's graphic or lines cross target prop's graphic)
-	//	3) LINES (most slow to check, must check if at least one line of pivot prop cross ta least 1 target prop's line)
-
-	union { 
-		struct {
-			VertexArr upper;
-			VertexArr lower;
-			VertexArr left;
-			VertexArr right;
-		};
-		
-	};
-	Vertex* center;
-	bool nocollide;
-} Prop;
-
-Prop* init_prop(int upper_x[], 
-				int upper_y[],
-				int upper_len,
-				int lower_x[],
-				int lower_y[],
-				int lower_len,
-				int left_x[],
-				int left_y[],
-				int left_len,
-				int right_x[],
-				int right_y[],
-				int right_len) {
-	/*
-	Constructor for structure 'Prop'
-	*/
-	static Prop* self;
-	self = (Prop*)malloc(sizeof(Prop));
-	Vertex* vertexes = (Vertex*)malloc(sizeof(Vertex) * MAX_VERTEX_ARR_LEN);
-	self->upper = *init_varray(0);
-	self->lower = *init_varray(0);
-	self->left = *init_varray(0);
-	self->right = *init_varray(0);
-	VertexArr* arrays[4] = {&self->upper, &self->lower, &self->left, &self->right};
-	int* list_x[4] = { upper_x, lower_x, left_x, right_x };
-	int* list_y[4] = { upper_y, lower_y, left_y, right_y };
-	int lengths[4] = { upper_len, lower_len, left_len, right_len };
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < lengths[i]; j++)
-			addVertex(arrays[i], list_x[i][j], list_y[i][j]);
-	}
-	return self;
+Vector* get(VectorArr* self, unsigned index) {
+	return &self->vectors[index];
 }
 
 Vertex* find_central_vertex(Prop* self) {
@@ -220,27 +113,18 @@ Vertex* find_central_vertex(Prop* self) {
 	int len = 0;
 	int sumX = 0;
 	int sumY = 0;
+	Vector vector;
 	switch (self->collision_type) {
-	case LINES:
-		for (int i = 0; i < self->upper.length; i++, len++) {
-			Vertex vertex = self->upper.vertexes[i];
-			sumX += vertex.X;
-			sumY += vertex.Y;
-		}
-		for (int i = 0; i < self->lower.length; i++, len++) {
-			Vertex vertex = self->lower.vertexes[i];
-			sumX += vertex.X;
-			sumY += vertex.Y;
-		}
-		for (int i = 0; i < self->left.length; i++, len++) {
-			Vertex vertex = self->left.vertexes[i];
-			sumX += vertex.X;
-			sumY += vertex.Y;
-		}
-		for (int i = 0; i < self->right.length; i++, len++) {
-			Vertex vertex = self->right.vertexes[i];
-			sumX += vertex.X;
-			sumY += vertex.Y;
+	case BONES:
+		VectorArr arrays[4] = {self->upper , self->lower , self->left , self->right};
+		for (int arr_n = 0; arr_n < 4; arr_n++) {
+			for (int i = 0; i < arrays[arr_n].length; i++, len++) {
+				vector = arrays[arr_n].vectors[i];
+				sumX += vector.p1->X;
+				sumY += vector.p1->Y;
+				sumX += vector.p2->X;
+				sumY += vector.p2->Y;
+			}
 		}
 		break;
 	}
@@ -248,7 +132,7 @@ Vertex* find_central_vertex(Prop* self) {
 	return init_vertex(sumX / len, sumY / len);
 }
 
-Prop* init_prop(COLLISION_TYPE type, VertexArr upper, VertexArr lower, VertexArr left, VertexArr right) {
+Prop* init_prop(COLLISION_TYPE type, VectorArr upper, VectorArr lower, VectorArr left, VectorArr right) {
 	/*
 	Constructor for structure 'Prop'
 	*/
@@ -266,11 +150,11 @@ Prop* init_prop(COLLISION_TYPE type, VertexArr upper, VertexArr lower, VertexArr
 
 void del_prop(Prop* self) {
 	switch (self->collision_type) {
-	case LINES:
-		del_varray(&self->upper);
-		del_varray(&self->lower);
-		del_varray(&self->left);
-		del_varray(&self->right);
+	case BONES:
+		del_vectorarr(&self->upper);
+		del_vectorarr(&self->lower);
+		del_vectorarr(&self->left);
+		del_vectorarr(&self->right);
 		free(self->center);
 		break;
 	}
@@ -285,7 +169,8 @@ void shift(PHISICS_TYPE type, int dx, int dy, ...) {
 	va_start(argument, dy);
 	union {
 		Vertex* vertex;
-		VertexArr* varray;
+		Vector* vector;
+		VectorArr* vectorarr;
 		Prop* prop;
 	};
 	switch (type) {
@@ -296,21 +181,26 @@ void shift(PHISICS_TYPE type, int dx, int dy, ...) {
 			vertex->Y += dy;
 		}
 		break;
-	case VARRAY:
-		varray = va_arg(argument, VertexArr*);
-		for (Vertex* vertex = varray->vertexes; vertex != varray->vertexes + varray->length; vertex++) {
-			shift(VERTEX, dx, dy, vertex);
+	case VECTOR:
+		vector = va_arg(argument, Vector*);
+		shift(VERTEX, dx, dy, vector->p1);
+		shift(VERTEX, dx, dy, vector->p2);
+		break;
+	case VECTORARR:
+		vectorarr = va_arg(argument, VectorArr*);
+		for (Vector* vector = vectorarr->vectors; vector != vectorarr->vectors + vectorarr->length; vector++) {
+			shift(VECTOR, dx, dy, vector);
 		}
 		break;
 	case PROP:
 		prop = va_arg(argument, Prop*);
 		if (prop != NULL) {
 			switch (prop->collision_type) {
-			case LINES:
-				shift(VARRAY, dx, dy, prop->upper);
-				shift(VARRAY, dx, dy, prop->lower);
-				shift(VARRAY, dx, dy, prop->left);
-				shift(VARRAY, dx, dy, prop->right);
+			case BONES:
+				shift(VECTORARR, dx, dy, prop->upper);
+				shift(VECTORARR, dx, dy, prop->lower);
+				shift(VECTORARR, dx, dy, prop->left);
+				shift(VECTORARR, dx, dy, prop->right);
 			}
 			shift(VERTEX, dx, dy, &prop->center);
 		}
@@ -318,7 +208,7 @@ void shift(PHISICS_TYPE type, int dx, int dy, ...) {
 	}
 	va_end(argument);
 }
-
+/*
 double distance(PHISICS_TYPE type_1, PHISICS_TYPE type_2, ...) {
 	va_list arguments;
 	double a1, b1, a2, b2, x1, x2, y1, y2, X, Y, x3, y3, x4, y4;
@@ -385,9 +275,7 @@ double distance(PHISICS_TYPE type_1, PHISICS_TYPE type_2, ...) {
 	}
 	va_end(arguments);
 }
-
-
-double distance(PHISICS_TYPE type_1, PHISICS_TYPE type_2, ...);
+*/
 
 bool isBetween(int a_X, int a_Y, int b_X, int b_Y, double c_X, double c_Y) {
 	/*
@@ -404,76 +292,90 @@ bool isBetween(int a_X, int a_Y, int b_X, int b_Y, double c_X, double c_Y) {
 	return true;
 }
 
-bool line_cross(Vertex* v1_1, Vertex* v1_2, Vertex* v2_1, Vertex* v2_2, char axis) {
+double distance_between_verteces(Vertex* v1, Vertex* v2) {
+	// find distance between two verteces
+	return sqrt(pow((v2->X - v1->X), 2) + pow((v2->Y - v1->Y), 2));
+}
+
+double distance_between_vectors(Vector* v1, Vector* v2) {
 	/*
-	Determine, whether two lines are crossing each other
+	Finds distanse between parallel vectors with respect to axis, vectors tilting to
 	*/
-	double v1_1_X = v1_1->X;
-	double v1_1_Y = v1_1->Y;
-	double v1_2_X = v1_2->X;
-	double v1_2_Y = v1_2->Y;
-	double v2_1_X = v2_1->X;
-	double v2_1_Y = v2_1->Y;
-	double v2_2_X = v2_2->X;
-	double v2_2_Y = v2_2->Y;
-	double X;
-	double Y;
+	double x1 = v1->p1->X;
+	double y1 = v1->p1->Y;
+	double x2 = v1->p2->X;
+	double y2 = v1->p2->Y;
 
-	double a1 = (v1_1_Y / (v1_1_X - v1_2_X) + v1_2_Y / (v1_2_X - v1_1_X));
-	double b1 = -(v1_1_Y / (v1_1_X - v1_2_X)) * v1_2_X - (v1_2_Y / (v1_2_X - v1_1_X)) * v1_1_X;
-	double a2 = v2_1_Y / (v2_1_X - v2_2_X) + v2_2_Y / (v2_2_X - v2_1_X);
-	double b2 = -(v2_1_Y / (v2_1_X - v2_2_X)) * v2_2_X - (v2_2_Y / (v2_2_X - v2_1_X)) * v2_1_X;
+	double x3 = v2->p1->X;
+	double y3 = v2->p1->Y;
+	double x4 = v2->p2->X;
+	double y4 = v2->p2->Y;
 
-	if (fabs(a2 - a1) <= EPS) {
-		puts("");
-		b1 = distance(LINE, LINE, v1_1, v1_2, v2_1, v2_2);
-		switch (axis) {
-		case '|':
-			if (max(v1_1_X, v1_2_X) < min(v2_1_X, v2_2_X) || min(v1_1_X, v1_2_X) > max(v2_1_X, v2_2_X)) {
-				b1 = min(min(distance(VERTEX, VERTEX, v1_1, v2_1), distance(VERTEX, VERTEX, v1_2, v2_1)), min(distance(VERTEX, VERTEX, v1_1, v2_2), distance(VERTEX, VERTEX, v1_2, v2_2)));
-				return (b1 <= EPS);
-			}
-			b1 = b1 / fabs(cos(atan(a1)));
-			break;
-		case '-':
-			if (max(v1_1_Y, v1_2_Y) < min(v2_1_Y, v2_2_Y) || min(v1_1_Y, v1_2_Y) > max(v2_1_Y, v2_2_Y)) {
-				b1 = min(min(distance(VERTEX, VERTEX, v1_1, v2_1), distance(VERTEX, VERTEX, v1_2, v2_1)), min(distance(VERTEX, VERTEX, v1_1, v2_2), distance(VERTEX, VERTEX, v1_2, v2_2)));
-				return (b1 <= EPS);
-			}
-			b2 = atan(a1);
-			b1 = b1 / fabs(cos(0.5 * PI - b2));
-			break;
-		}
-		return (b1 <= 3.0);
+	double a1 = (y1 / (x1 - x2) + y2 / (x2 - x1));
+	double b1 = -(y1 / (x1 - x2)) * x2 - (y2 / (x2 - x1)) * x1;
+	double b2 = -(y3 / (x3 - x4)) * x4 - (y4 / (x4 - x3)) * x3;
+	double d = fabs(b2 - b1) / sqrt(1 + pow(a1, 2));
+
+	if (a1 > 1) { // if vector is tilting to OY axis
+		if (max(x1, x2) < min(x3, x4) || min(x1, x2) > max(x3, x4))
+			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
+				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));
+		else
+			d /= fabs(cos(atan(a1)));
+	}
+	else if (a1 < 1) { // if vector is tilting to OX axis
+		if (max(y1, y2) < min(y3, y4) || min(y1, y2) > max(y3, y4))
+			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
+				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));
+		else
+			d /= fabs(cos(0.5 * PI - atan(a1)));
+	}
+	return d;
+}
+
+double crossProduct(double v[2], double w[2]) {
+	return v[_X] * w[_Y] - v[_Y] * w[_X];
+}
+
+bool countClockwise(Vertex* A, Vertex* B, Vertex* C) {
+	// Checks, whether point C lays clockwise from A and B
+	return (C->Y - A->Y) * (B->X - A->X) > (B->Y - A->Y) * (C->X - A->X);
+}
+
+bool new_line_cross(Vector* v1, Vector* v2, unsigned min_distance) {
+	/*
+	Checks, whether vectors cross each other. Used method: "Clockwise check".
+	Argument 'min_distance' represent minimal allowable distance between vectors if they are parallel. If distance is less than 'step', vectors intersecs
+	*/
+	static Vector vI = *init_vector(0, 0, 1, 0), vJ = *init_vector(0, 0, 0, 1); // identity vectors vI = (1, 0) and vJ = (0, 1)
+	Vertex* A = v1->p1;
+	Vertex* B = v1->p2;
+	Vertex* C = v2->p1;
+	Vertex* D = v2->p2;
+
+	double r[2] = { v1->p2->X - v1->p1->X, v1->p2->Y - v1->p1->Y };
+	double s[2] = { v2->p2->X - v2->p1->X, v2->p2->Y - v2->p1->Y };
+	double relative_tilt = crossProduct(r, s);
+	double d;
+
+	if (fabs(relative_tilt) <= EPS) { // vectors are collinear (parallel)
+		d = distance_between_vectors(v1, v2);
+		if (d <= min_distance) return true;
 		return false;
 	}
-	else {
-		X = (b2 - b1) / (-a2 - (-a1));
-		Y = b1 + (a1)*X;
-	}
 
-	if (isBetween(v1_1_X, v1_1_Y, v1_2_X, v1_2_Y, X, Y) && isBetween(v2_1_X, v2_1_Y, v2_2_X, v2_2_Y, X, Y)) return true;
-	return false;
-}
-/*
-double crossProduct(Vertex* v1, Vertex* v2, Vertex* v3, Vertex* v4) {
-	return (v2->X - v1->X) * (v4->Y - v3->Y) - (v2->Y - v1->Y) * (v4->X - v3->X);
+	return countClockwise(A, C, D) != countClockwise(B, C, D) && countClockwise(A, B, C) != countClockwise(A, B, D);
 }
 
-bool line_cross_new(Vertex* v1, Vertex* v2, Vertex* v3, Vertex* v4) {
-	double s = v2
-}
-*/
-
-const bool collide_side(Prop* self, Prop* prop, COLLISION_SIDE side) {
+const bool collide_side(Prop* self, Prop* prop, unsigned min_distance, COLLISION_SIDE side) {
 	/*
 	Check collision between 2 objects by only one side
 	*/
-	Vertex* pivot, * v1, * v2, *v3, *v4;
-	VertexArr* self_varray = NULL;
-	VertexArr* prop_varray = NULL;
-	char axis = '|';
-	if (self == NULL || prop == NULL) return "";
+	Vector* pivot, * v1, * v2, *v3, *v4;
+	VectorArr* self_varray = NULL;
+	VectorArr* prop_varray = NULL;
+
+	if (self == NULL || prop == NULL) return false;
 	switch (side) {
 	case UP:
 		self_varray = &self->upper;
@@ -486,35 +388,18 @@ const bool collide_side(Prop* self, Prop* prop, COLLISION_SIDE side) {
 	case LEFT:
 		self_varray = &self->left;
 		prop_varray = &prop->right;
-		axis = '-';
 		break;
 	case RIGHT:
 		self_varray = &self->right;
 		prop_varray = &prop->left;
-		axis = '-';
 		break;
 	}
-	for (int x = 0, y = 1; y < self_varray->length; x++, y++) {
-		v3 = get(self_varray, x);
-		v4 = get(self_varray, y);
-		for (int i = 0, j = 1; j < prop_varray->length; i++, j++) {
-			v1 = get(prop_varray, i);
-			v2 = get(prop_varray, j);
-			if (line_cross(v1, v2, v3, v4, axis)) return true;
+	for (int x = 0; x < self_varray->length; x++) {
+		v1 = get(self_varray, x);
+		for (int i = 0; i < prop_varray->length; i++) {
+			v2 = get(prop_varray, i);
+			if (new_line_cross(v1, v2, min_distance)) return true;
 		}
 	}
 	return false;
-}
-
-COLLISION_SIDE collision(Prop* self, Prop* prop) {
-	/*
-	Check, wthether 2 props collides, return collision side as const char* . Can by "up", "down", "left", "right"
-	*/
-	//for (Vertex* vertex1 = prop1->upper.vertexes, *vertex2 = prop2->upper.vertexes + 1;)
-	Vertex* pivot, *v1, *v2;
-	bool collide = true;
-	if (self == NULL || prop == NULL) return NOCOLLIDE;
-	//char* sides 
-	
-	return NOCOLLIDE;
 }
