@@ -149,6 +149,7 @@ Prop* init_prop(COLLISION_TYPE type, VectorArr upper, VectorArr lower, VectorArr
 }
 
 void del_prop(Prop* self) {
+	if (self == NULL) return;
 	switch (self->collision_type) {
 	case BONES:
 		del_vectorarr(&self->upper);
@@ -310,14 +311,24 @@ double distance_between_vectors(Vector* v1, Vector* v2) {
 	double y3 = v2->p1->Y;
 	double x4 = v2->p2->X;
 	double y4 = v2->p2->Y;
+	double d, a1, b1, b2;
 
-	double a1 = (y1 / (x1 - x2) + y2 / (x2 - x1));
-	double b1 = -(y1 / (x1 - x2)) * x2 - (y2 / (x2 - x1)) * x1;
-	double b2 = -(y3 / (x3 - x4)) * x4 - (y4 / (x4 - x3)) * x3;
-	double d = fabs(b2 - b1) / sqrt(1 + pow(a1, 2));
+	if (fabs(x1 - x2) <= EPS) { // complete this !!!
+		if (max(y1, y2) <= min(y3, y4) || min(y1, y2) >= max(y3, y4))
+			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
+				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));
+		else d = fabs(x1 - x3);
+		return d;
+	}
+	else {
+		a1 = (y1 / (x1 - x2) + y2 / (x2 - x1));
+		b1 = -(y1 / (x1 - x2)) * x2 - (y2 / (x2 - x1)) * x1;
+		b2 = -(y3 / (x3 - x4)) * x4 - (y4 / (x4 - x3)) * x3;
+		d = fabs(b2 - b1) / sqrt(1 + pow(a1, 2));
+	}
 
 	if (a1 > 1) { // if vector is tilting to OY axis
-		if (max(x1, x2) < min(x3, x4) || min(x1, x2) > max(x3, x4))
+		if (max(x1, x2) <= min(x3, x4) || min(x1, x2) >= max(x3, x4))
 			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
 				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));
 		else
@@ -342,7 +353,7 @@ bool countClockwise(Vertex* A, Vertex* B, Vertex* C) {
 	return (C->Y - A->Y) * (B->X - A->X) > (B->Y - A->Y) * (C->X - A->X);
 }
 
-bool new_line_cross(Vector* v1, Vector* v2, unsigned min_distance) {
+bool new_line_cross(Vector* v1, Vector* v2, int min_distance) {
 	/*
 	Checks, whether vectors cross each other. Used method: "Clockwise check".
 	Argument 'min_distance' represent minimal allowable distance between vectors if they are parallel. If distance is less than 'step', vectors intersecs
@@ -367,7 +378,7 @@ bool new_line_cross(Vector* v1, Vector* v2, unsigned min_distance) {
 	return countClockwise(A, C, D) != countClockwise(B, C, D) && countClockwise(A, B, C) != countClockwise(A, B, D);
 }
 
-const bool collide_side(Prop* self, Prop* prop, unsigned min_distance, COLLISION_SIDE side) {
+const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE side) {
 	/*
 	Check collision between 2 objects by only one side
 	*/
@@ -393,13 +404,36 @@ const bool collide_side(Prop* self, Prop* prop, unsigned min_distance, COLLISION
 		self_varray = &self->right;
 		prop_varray = &prop->left;
 		break;
+	default:
+		return false;
 	}
-	for (int x = 0; x < self_varray->length; x++) {
-		v1 = get(self_varray, x);
-		for (int i = 0; i < prop_varray->length; i++) {
-			v2 = get(prop_varray, i);
+	for (Vector* v1 = self_varray->vectors; v1 != self_varray->vectors + self_varray->length; v1++) {
+		for (Vector* v2 = prop_varray->vectors; v2 != prop_varray->vectors + prop_varray->length; v2++) {
 			if (new_line_cross(v1, v2, min_distance)) return true;
 		}
 	}
 	return false;
 }
+/*
+bool collision(PHISICS_TYPE type1, PHISICS_TYPE type2, ...) {
+	va_list arguments;
+	union {
+		Vertex* vertex1;
+		Vertex* vertex2;
+		Vector* vector1;
+		Vector* vector2;
+		Prop* prop1;
+		Prop* prop2;
+	};
+	va_start(arguments, type2);
+	switch (type1) {
+	case VERTEX:
+		vertex1 = 
+		switch (type2) {
+			case VERTEX:
+				vertex;
+		}
+	}
+	va_end(arguments);
+}
+*/
