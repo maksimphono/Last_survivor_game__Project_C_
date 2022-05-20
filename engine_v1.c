@@ -118,7 +118,7 @@ Vertex* find_central_vertex(Prop* self) {
 	case BONES:
 		VectorArr arrays[4] = {self->upper , self->lower , self->left , self->right};
 		for (int arr_n = 0; arr_n < 4; arr_n++) {
-			for (int i = 0; i < arrays[arr_n].length; i++, len++) {
+			for (int i = 0; i < arrays[arr_n].length; i++, len += 2) {
 				vector = arrays[arr_n].vectors[i];
 				sumX += vector.p1->X;
 				sumY += vector.p1->Y;
@@ -203,7 +203,7 @@ void shift(PHISICS_TYPE type, int dx, int dy, ...) {
 				shift(VECTORARR, dx, dy, prop->left);
 				shift(VECTORARR, dx, dy, prop->right);
 			}
-			shift(VERTEX, dx, dy, &prop->center);
+			shift(VERTEX, dx, dy, prop->center);
 		}
 		break;
 	}
@@ -342,6 +342,11 @@ double distance_between_vectors(Vector* v1, Vector* v2) {
 			d /= fabs(cos(0.5 * PI - atan(a1)));
 	}
 	return d;
+}
+
+double prop_centers_distance(Prop* object1, Prop* object2) {
+	//printf("Object2 center: %d, %d", object2->center->X, )
+	return sqrt(pow(object1->center->X - object2->center->X, 2) + pow(object1->center->Y - object2->center->Y, 2));
 }
 
 double crossProduct(double v[2], double w[2]) {

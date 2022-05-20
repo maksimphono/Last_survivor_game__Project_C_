@@ -4,7 +4,8 @@ LPCTSTR BONE_MODEL_PATH = L"assets\\bone.png";
 
 typedef unsigned long long ull;
 typedef enum { FIGURE, IMG, ENTITY, ENTLIST, ENTNODE } GRAPHIC_TYPE;
-typedef enum { NONE, BONE, EFFECT, OBJECT, ITEM, MOB } ENTITY_TYPE;
+typedef enum { ELLIPSE, LINE, RECT, CIRCLE } PRIMITIVE_TYPE;
+typedef enum { NONE, BONE, EFFECT, OBJECT, ITEM, MOB, WALL } ENTITY_TYPE;
 
 extern IMAGE images[MAX_IMAGE_NUM] = {}; // array, that contains all images, that will be rendered on canvas
 extern unsigned images_len = 0;
@@ -38,6 +39,7 @@ typedef struct Figure {
 	unsigned width;
 	unsigned height;
 	unsigned img_index;
+
 } Figure;
 
 typedef struct FigureArray {
@@ -52,14 +54,18 @@ typedef struct Entity {
 	*/
 	const char* name;
 	ENTITY_TYPE type;
-	int lower_edge;
 	Figure* figure;
 	FigureArray bones;
 	Prop* phis_model;
+	int target[2];
+	int vision_radius;
+	int lower_edge;
 	const char* (*loop_action)(Entity*, int);
 	const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE);
 	int center_x;
 	int center_y;
+	double move_axis;
+	double distance_to_target;
 	int X;
 	int Y;
 } Entity;
@@ -71,7 +77,7 @@ typedef struct EntArray {
 
 typedef struct EntityNode {
 	ENTITY_TYPE type;
-	Entity object;
+	Entity* object;
 	EntityNode* prev;
 	EntityNode* next;
 	int lower_edge;
@@ -184,7 +190,6 @@ int clearFigureArr(FigureArray* self) {
 	return 0;
 }
 
-
 Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	/*
 	Constructor for 'Entity' structure
@@ -198,7 +203,8 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	self->X = x;
 	self->Y = y;
 	self->center_x = x + self->figure->width / 2;
-	self->center_x = x + self->figure->height / 2;
+	self->center_y = y + self->figure->height / 2;
+	self->vision_radius = STANDART_VISION_RADIUS;
 	self->lower_edge = y + self->figure->height;
 	self->phis_model = NULL;
 	self->loop_action = NULL;
@@ -206,10 +212,8 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	return self;
 }
 
-Entity* setup_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
-	if (self == NULL) {
-		return init_entity(x, y, path_to_image);
-	}
+Entity* reinit_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
+	if (self == NULL) return NULL;
 	self->name = "object";
 	self->figure = setup_figure(x, y, path_to_image);
 	//self->phis_model = *init_prop();
@@ -217,7 +221,8 @@ Entity* setup_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
 	self->X = x;
 	self->Y = y;
 	self->center_x = x + self->figure->width / 2;
-	self->center_x = x + self->figure->height / 2;
+	self->center_y = y + self->figure->height / 2;
+	self->vision_radius = STANDART_VISION_RADIUS;
 	self->lower_edge = y + self->figure->height;
 	self->collision_action = NULL;
 	self->loop_action = NULL;
@@ -253,6 +258,38 @@ void setProp(Entity* self, VectorArr upper, VectorArr lower, VectorArr left, Vec
 	}
 }
 
+void setTarget(Entity* self, const char* type, ...) {
+	va_list argument;
+	union {
+		Entity* object;
+		struct {
+			int X;
+			int Y;
+		};
+	};
+	va_start(argument, type);
+	if (type == "Points") {
+		X = va_arg(argument, int);
+		Y = va_arg(argument, int);
+	}
+	else if (type == "Object") {
+		object = va_arg(argument, Entity*);
+		X = object->X;
+		Y = object->Y;
+	}
+	self->target[_X] = X;
+	self->target[_Y] = Y;
+	self->move_axis = (double)(self->target[_Y] - self->center_y) / (double)(self->target[_X] - self->center_x);
+	self->distance_to_target = sqrt(pow(self->target[_Y] - self->center_y, 2) + pow(self->target[_X] - self->center_x, 2));
+
+	va_end(argument);
+}
+
+void setAxis(Entity* self) {
+	if (self->target[_X] < 0 || self->target[_Y] < 0) return;
+
+}
+
 EntityNode* animate_entnode();
 
 
@@ -263,7 +300,7 @@ EntityNode* init_entnode(Entity* object) {
 	self->prev = NULL;
 	self->type = object->type;
 	self->lower_edge = object->lower_edge;
-	self->object = *object;
+	self->object = object;
 	return self;
 }
 
@@ -276,7 +313,7 @@ EntityList* init_entlist() {
 	return self;
 }
 
-EntityNode* registerEntity(int x, int y, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* with_prop, ...) {
+EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
 	/*
 	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
 	takes 4 'VerexArr' objects, creates 'Prop' instance, using those arrays and sets created entity's 'phi_model'
@@ -290,10 +327,12 @@ EntityNode* registerEntity(int x, int y, LPCTSTR path_to_image, const char* (*ac
 	}
 	else {
 		new_node = animate_entnode();
-		setup_entity(&new_node->object, x, y, path_to_image);
-		new_node->lower_edge = new_node->object.lower_edge;
+		reinit_entity(new_node->object, x, y, path_to_image);
+		new_node->lower_edge = new_node->object->lower_edge;
 	}
-	new_node->object.loop_action = action;
+	new_node->object->loop_action = action;
+	new_node->object->collision_action = collision_action;
+	new_node->object->name = name;
 
 	if (with_prop == "Prop:") {
 		va_list vertex_arrs;
@@ -303,10 +342,10 @@ EntityNode* registerEntity(int x, int y, LPCTSTR path_to_image, const char* (*ac
 		VectorArr left = va_arg(vertex_arrs, VectorArr);
 		VectorArr right = va_arg(vertex_arrs, VectorArr);
 		va_end(vertex_arrs);
-		setProp(&new_node->object, up, down, left, right);
+		setProp(new_node->object, up, down, left, right);
 	}
 	else {
-		new_node->object.phis_model = NULL;
+		new_node->object->phis_model = NULL;
 	}
 	return new_node;
 }

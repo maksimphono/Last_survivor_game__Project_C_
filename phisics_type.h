@@ -32,8 +32,8 @@ typedef struct {
 
 typedef struct Prop {
 	/*
-	Abstract structure, that represents phisics object. It has 4 vector arrays, that represents
-	upper, lower, left and right collision Vectors. 'center' represents the point at the center of the object.
+	Abstract structure, that represents phisics object-> It has 4 vector arrays, that represents
+	upper, lower, left and right collision Vectors. 'center' represents the point at the center of the object->
 	*/
 	COLLISION_TYPE collision_type; // Prop's collision model can be represented in certain ways: 
 	//	1) CIRCLE (most quick check, because i just check distance to the center of the target prop)

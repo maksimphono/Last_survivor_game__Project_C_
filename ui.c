@@ -31,16 +31,17 @@ void button_press(char btn, Entity* main_ch) {
 		show_hide_all_bones(UP);
 		break;
 	case 'T':
-		registerEntity(x, y, L"assets\\train.png", Move_Left_Action, "Prop:",
+		registerEntity(x, y, "Train", L"assets\\train.png", Move_Left_Action, Go_Back_Action, "Prop:",
 			init_vectorarr(1, x, y, x + 100, y),
 			init_vectorarr(1, x, y + 100, x + 100, y + 100),
 			init_vectorarr(1, x, y, x, y + 100),
 			init_vectorarr(1, x + 100, y, x + 100, y + 100));
-		entity_list.tail->object.collision_action = Go_Back_Action;
 		break;
 	case 'R':
 		kill_entnode(entity_list.tail);
 		break;
+	case 'M':
+		move_directly(main_ch, 500,550, 5);
 	}
 }
 
@@ -64,18 +65,20 @@ void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* main_ch) { // fu
 	if (message->message == WM_KEYDOWN)
 		button_press(message->vkcode, main_ch);
 	
-	
 	if (message->message == WM_LBUTTONDOWN) {
 		int x = message->x - 25, y = message->y - 25;
-		registerEntity(x, y, L"assets\\box3.png", NULL, "Prop:",
+		registerEntity(x, y, "Box", L"assets\\box3.png", NULL, Push_Action, "Prop:",
 			init_vectorarr(1, x, y, x + 50, y),
 			init_vectorarr(1, x, y + 50, x + 50, y + 50),
 			init_vectorarr(1, x, y, x, y + 50),
 			init_vectorarr(1, x + 50, y, x + 50, y + 50));
-		entity_list.tail->object.name = "box";
-		//entity_list.tail->object.loop_action = Move_Left_Action;
-		//entity_list.tail.object->action = Move_Left_Action;
 		message->message = NULL;
+	}
+	else if (message->message == WM_RBUTTONDOWN) {
+		setTarget(main_ch, "Points", message->x, message->y);
+		main_ch->loop_action = Move_to_Target_Action;
+		registerEntity(main_ch->target[_X] - 20, main_ch->target[_Y] - 20, "Pointer", L"assets\\pointer.png", NULL, NULL, "Not");
+		//circle(main_ch->target[_X] - 25, main_ch->target[_Y] - 25, 50);
 	}
 }
 
@@ -86,34 +89,23 @@ void mainloop(const char* arg) {
 
 	// creating entities
 	
-	registerEntity(20, 15, L"assets\\box1.png", NULL, "without prop");
-	registerEntity(200, 150, L"assets\\plant.png", NULL, "without prop");
-	registerEntity(400, 150, L"assets\\plantNULL.png", NULL, "without prop");
-	registerEntity(270, 180, L"assets\\plant.png", NULL, "without prop");
-	registerEntity(310, 190, L"assets\\plant.png", NULL, "without prop");
-	registerEntity(20, 540, L"assets\\plant.png", NULL, "without prop");
-	registerEntity(100, 30, L"assets\\garage.png", NULL, "without prop");
-	/*
-	registerEntity(400, 350, L"assets\\box3.png", NULL, "Prop:",
-		init_vectorarr(1, 400, 350, 450, 350), 
-		init_vectorarr(1, 400, 390, 445, 430),
-		init_vectorarr(1, 400, 350, 420, 400),
-		init_vectorarr(1, 450, 350, 445, 405));
-	*/
-	//Entity main_ch = *init_entity(100, 100, MAIN_CH_MODEL_PATH);
-	registerEntity(0, 420, L"assets\\railway.png", NULL, "without prop");
-	registerEntity(100, 500, MAIN_CH_MODEL_PATH, NULL, "not Prop");
+	registerEntity(20, 15, "none", L"assets\\box1.png", NULL, NULL, "without prop");
+	registerEntity(200, 150, "none", L"assets\\plant.png", NULL, NULL, "without prop");
+	registerEntity(400, 150, "none", L"assets\\plantNULL.png", NULL, NULL, "without prop");
+	registerEntity(270, 180, "none", L"assets\\plant.png", NULL, NULL, "without prop");
+	registerEntity(310, 190, "none", L"assets\\plant.png", NULL, NULL, "without prop");
+	registerEntity(20, 540, "none", L"assets\\plant.png", NULL, NULL, "without prop");
+	registerEntity(100, 30, "none", L"assets\\garage.png", NULL, NULL, "without prop");
+	registerEntity(0, 420, "Box", L"assets\\railway.png", NULL, NULL, "without prop");
+	registerEntity(100, 500, "main", MAIN_CH_MODEL_PATH, NULL, Push_Action, "not Prop");
 		//init_varray(1, 120, 100), init_varray(1, 120, 140), init_varray(1, 100, 120), init_varray(1, 140, 120));
-	Entity* main_ch = &entity_list.tail->object;
+	Entity* main_ch = entity_list.tail->object;
 	setProp(main_ch, 
 		*init_vectorarr(1, 100, 500, 145, 540),
 		*init_vectorarr(1, 100, 550, 150, 555),
 		*init_vectorarr(1, 100, 500, 95, 555),
 		*init_vectorarr(1, 150, 505, 160, 555));
-	main_ch->collision_action = Push_Action;
-	main_ch->name = "main";
-	//addEnt(&main_ch);
-
+	
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT); //		create main window and put image on it
 	loadimage(&main_background, MAIN_BG_MODEL_PATH);
 	bg = GetImageBuffer(&main_background);

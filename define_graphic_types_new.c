@@ -49,7 +49,7 @@ void sortEnt(int main_ch_index) {
 	for (EntityNode* currentNode = entity_list.head->next; currentNode != NULL; currentNode = currentNode_next) {
 		lower_node = currentNode->prev;
 		pivot = currentNode;
-		while (lower_node != NULL && lower_node->prev != NULL && lower_node->object.lower_edge > pivot->object.lower_edge) lower_node = lower_node->prev;
+		while (lower_node != NULL && lower_node->prev != NULL && lower_node->object->lower_edge > pivot->object->lower_edge) lower_node = lower_node->prev;
 		currentNode_next = currentNode->next;
 		if (lower_node != pivot->prev) {
 			removeEntNode(&entity_list, pivot);
@@ -79,7 +79,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		screen_width = GetWorkingImage()->getwidth();
 
 	if (dy || dx) { // if object actually moves
-		sortEnt(0); // sort the entity array, because i need first render objects, those lays higher on the screen
+		sortEnt(0); // sort the entii.ty array, because i need first render objects, those lays higher on the screen
 	}
 
 	renderAll(render);
@@ -169,11 +169,13 @@ Entity* check_collision_with_all(Entity* self, int step, COLLISION_SIDE side) {
 	*/
 	Prop* self_model = self->phis_model;
 	Prop* node_model = NULL;
-	//static Entity*
+	Entity* obstacles[MAX_OBSTACLE_NUMBER] = {};
 	if (self_model->nocollide) return NULL;
 	for (EntityNode* currentNode = entity_list.head; currentNode != NULL; currentNode = currentNode->next){
-		node_model = currentNode->object.phis_model;
-		if (&currentNode->object != self && node_model != NULL && collide_side(self_model, node_model, step, side)) return &currentNode->object;
+		node_model = currentNode->object->phis_model;
+		if (currentNode->object != self && node_model != NULL && prop_centers_distance(node_model, self_model) <= self->vision_radius){
+			if (collide_side(self_model, node_model, step, side)) return currentNode->object;
+		}
 	}
 	return NULL;
 }
@@ -211,10 +213,10 @@ void move(GRAPHIC_TYPE type, ...) {
 		dx = va_arg(arguments, int);
 		dy = va_arg(arguments, int);
 		if (dy) side = (dy < 0) ? UP : DOWN;
-		if (entity->name == "box")// && obstacle1 != NULL)
-			puts("");
-		obstacle1 = check_collision_with_all(entity, fabs(dy), side);
 		
+		obstacle1 = check_collision_with_all(entity, fabs(dy), side);
+		//if (entity->name == "box" && obstacle1 != NULL)
+			//puts("");
 		if (obstacle1 != NULL){// || (dy > 0 && (obstacle1 = check_collision_with_all(entity, fabs(dy), DOWN)) != NULL)) {
 			if ((unsigned long long)entity != 0xFFFFFFFFFFFFFFCF && entity->collision_action != NULL) entity->collision_action(entity, obstacle1, &dx, &dy, side);
 			else dy = 0;
@@ -231,6 +233,9 @@ void move(GRAPHIC_TYPE type, ...) {
 			move(FIGURE, *bone, dx, dy);
 		}
 		entity->lower_edge += dy;
+		entity->center_x += dx;
+		entity->center_y += dy;
+
 		//entity->lower_edge += dy;
 		break;
 	case ENTLIST:
@@ -246,12 +251,43 @@ void move(GRAPHIC_TYPE type, ...) {
 	va_end(arguments);
 }
 
+void move_directly(Entity* self, int X, int Y, int max_step_length){
+	if (sqrt(pow(fabs(X - self->center_x), 2) + pow(fabs(Y - self->center_y), 2)) <= max_step_length) return;
+	double dX = 0, dY = 0;
+	double y2 = self->center_y;
+	double x2 = self->center_x;
+	double a = (Y / (max(X, x2) - min(X, x2)) + y2 / (min(X, x2) - max(X, x2)));
+	int step_x, step_y;
+	dY = (max_step_length * sin(atan(a)));
+	dX = dY / a;
+	step_y = (dY < 0) ? ceil(dY) : floor(dY);
+	step_x = (dX < 0) ? ceil(dX) : floor(dX);
+	move(ENTITY, self, step_x, step_y);
+}
+
+bool move_by_line(Entity* self, int X, int Y, int max_step_length) {
+	if (self->distance_to_target <= max_step_length) 
+		return true;
+	double dY = ((max_step_length - 1) * sin(atan(self->move_axis)));
+	double dX = dY / self->move_axis;
+	int step_y = (int)round(dY);
+	int step_x = (int)round(dX);
+
+	if (X < self->center_x){	// if point lies by left and up !!! I also have to realize when point lies by left and down !!!
+		step_y = -step_y;
+		step_x = -step_x;	
+	}
+	move(ENTITY, self, step_x, step_y);
+	self->distance_to_target -= sqrt(pow(step_y, 2) + pow(step_x, 2));
+	return false;
+}
+
 void show_bones(EntityNode* self, COLLISION_SIDE side) {
 	/*
 	Method, used to show on canvas all entity's bones (Verexes of prop)
 	*/
 	VectorArr* varrays[4] = {};
-	Prop* model = self->object.phis_model;
+	Prop* model = self->object->phis_model;
 	if (model != NULL) {
 		switch (side) {
 		case UP:
@@ -274,8 +310,8 @@ void show_bones(EntityNode* self, COLLISION_SIDE side) {
 		}
 		for (VectorArr** varray = varrays; varray != varrays + 4 && *varray != NULL; varray++)
 			for (int i = 0; i < (*varray)->length; i++) {
-				appendFigure(&self->object.bones, (*varray)->vectors[i].p1->X, (*varray)->vectors[i].p1->Y, BONE_MODEL_PATH);
-				appendFigure(&self->object.bones, (*varray)->vectors[i].p2->X, (*varray)->vectors[i].p2->Y, BONE_MODEL_PATH);
+				appendFigure(&self->object->bones, (*varray)->vectors[i].p1->X, (*varray)->vectors[i].p1->Y, BONE_MODEL_PATH);
+				appendFigure(&self->object->bones, (*varray)->vectors[i].p2->X, (*varray)->vectors[i].p2->Y, BONE_MODEL_PATH);
 			}
 	}
 }
@@ -297,11 +333,13 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 	}
 	else { // delete all bones from 'effectarray'
 		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
-			if (node->object.phis_model) clearFigureArr(&node->object.bones);
+			if (node->object->phis_model) clearFigureArr(&node->object->bones);
 		}
 		visiable = false;
 	}
 }
+
+// ACTIONS:
 
 const char* Move_Left_Action(Entity* self, int tick) {
 	move(ENTITY, self, -1, 0);
@@ -328,9 +366,21 @@ const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLIS
 	return "Push!";
 }
 
+const char* Move_to_Target_Action(Entity* self, int tick) {
+	//move_directly(self, self->target[_X], self->target[_Y], 5);
+	if (!self->target[0] || !self->target[1]) return "";
+	if (move_by_line(self, self->target[_X], self->target[_Y], 5)) {
+		self->target[_X] = 0;
+		self->target[_Y] = 0;
+		self->move_axis = 0;
+	}
+	return "Move directly";
+}
+
+
 void all_actions(int tick) {
 	for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
-		if (node->object.loop_action != NULL) node->object.loop_action(&node->object, tick);
+		if (node->object->loop_action != NULL) node->object->loop_action(node->object, tick);
 	}
 }
 
@@ -342,11 +392,11 @@ void renderAll(bool flag) {
 	if (flag) {
 		memmove(bg, bg_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
 		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
-			dst = move_transparent_image(0, 0, node->object.figure, BLACK, false);
+			dst = move_transparent_image(0, 0, node->object->figure, BLACK, false);
 			memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
 		}
 		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
-			for (Figure** bone = node->object.bones._; bone != node->object.bones._ + node->object.bones.length; bone++) {
+			for (Figure** bone = node->object->bones._; bone != node->object->bones._ + node->object->bones.length; bone++) {
 				dst = move_transparent_image(0, 0, *bone, BLACK, false);
 				memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
 			}
