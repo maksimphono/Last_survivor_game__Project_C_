@@ -126,24 +126,42 @@ Vertex* find_central_vertex(Prop* self) {
 				sumY += vector.p2->Y;
 			}
 		}
+		return init_vertex(sumX / len, sumY / len);
 		break;
 	}
-
-	return init_vertex(sumX / len, sumY / len);
+	return NULL;
 }
 
-Prop* init_prop(COLLISION_TYPE type, VectorArr upper, VectorArr lower, VectorArr left, VectorArr right) {
+Prop* init_prop(COLLISION_TYPE type, ...) {
 	/*
 	Constructor for structure 'Prop'
 	*/
 	static Prop* self;
+	VectorArr upper, lower, left, right;
+	va_list arguments;
+	unsigned collide_radius = 0;
+	int x, y;
+
 	self = (Prop*)malloc(sizeof(Prop));
-	self->upper = upper;
-	self->lower = lower;
-	self->left = left;
-	self->right = right;
+	va_start(arguments, type);
 	self->collision_type = type;
-	self->center = find_central_vertex(self);
+	switch (type) {
+	case RADIUS:
+		x = va_arg(arguments, int);
+		y = va_arg(arguments, int);
+		self->collide_radius = va_arg(arguments, unsigned);
+		self->center = init_vertex(x, y);
+		//self = init_prop(RADIUS, collide_radius);
+		break;
+	case BONES:
+		self->upper = va_arg(arguments, VectorArr);
+		self->lower = va_arg(arguments, VectorArr);
+		self->left = va_arg(arguments, VectorArr);
+		self->right = va_arg(arguments, VectorArr);
+		//self = init_prop(BONES, upper, lower, left, right);
+		self->center = find_central_vertex(self);
+		break;
+	}
 	self->nocollide = false;
 	return self;
 }
@@ -209,74 +227,6 @@ void shift(PHISICS_TYPE type, int dx, int dy, ...) {
 	}
 	va_end(argument);
 }
-/*
-double distance(PHISICS_TYPE type_1, PHISICS_TYPE type_2, ...) {
-	va_list arguments;
-	double a1, b1, a2, b2, x1, x2, y1, y2, X, Y, x3, y3, x4, y4;
-	union {
-		Vertex* v1, * v2, * v3, * v4;
-		Prop* prop_1, * prop_2;
-	};
-
-	va_start(arguments, type_2);
-	switch (type_1) {
-	case VERTEX:
-		v1 = va_arg(arguments, Vertex*);
-		switch (type_2) {
-		case VERTEX:
-			v2 = va_arg(arguments, Vertex*);
-			return sqrt(pow((v2->X - v1->X), 2) + pow((v2->Y - v1->Y), 2));
-		case LINE:
-			// I will count distance between vertex 'v1' and line with extreme vertexes (v2, v3)
-			v2 = va_arg(arguments, Vertex*); // first extreme vertex of line
-			v3 = va_arg(arguments, Vertex*); // second extreme vertex of line
-			X = v1->X;
-			x2 = v2->X;
-			Y = v1->Y;
-			y2 = v2->Y;
-			x3 = v3->X;
-			y3 = v3->Y;
-			a1 = (y2 / (x2 - x3) + y3 / (x3 - x2));
-			b1 = -(y2 / (x2 - x3)) * x3 - (y3 / (x3 - x2)) * x2;
-			// if vertex 'v1' lies away of extreme vertexes, return distance to nearest extreme vertex
-			if ((X > max(x3, x2) or X < min(x3, x2)) && (Y > max(y3, y2) or Y < min(y3, y2))) return min(distance(VERTEX, VERTEX, v2, v1), distance(VERTEX, VERTEX, v3, v1));
-			return fabs(a1 * X - Y + b1) / sqrt(pow(a1, 2) + 1.0);
-		}
-	case LINE:
-		v1 = va_arg(arguments, Vertex*);
-		v2 = va_arg(arguments, Vertex*);
-		switch (type_2) {
-		case VERTEX:
-			v3 = va_arg(arguments, Vertex*);
-			return distance(VERTEX, LINE, v3, v1, v2);
-		case LINE:
-			// Warning!! Before count distance between two lines, make sure that these lines are parallel;  
-			v3 = va_arg(arguments, Vertex*);
-			v4 = va_arg(arguments, Vertex*);
-			x1 = v1->X;
-			y1 = v1->Y;
-			x2 = v2->X;
-			y2 = v2->Y;
-
-			x3 = v3->X;
-			y3 = v3->Y;
-			x4 = v4->X;
-			y4 = v4->Y;
-
-			a1 = (y1 / (x1 - x2) + y2 / (x2 - x1));
-			b1 = -(y1 / (x1 - x2)) * x2 - (y2 / (x2 - x1)) * x1;
-			b2 = -(y3 / (x3 - x4)) * x4 - (y4 / (x4 - x3)) * x3;
-
-			return fabs(b2 - b1) / sqrt(1 + pow(a1, 2));
-		case PROP:
-			prop_1 = va_arg(arguments, Prop*);
-			prop_2 = va_arg(arguments, Prop*);
-			return distance(VERTEX, VERTEX, prop_1->center, prop_2->center);
-		}
-	}
-	va_end(arguments);
-}
-*/
 
 bool isBetween(int a_X, int a_Y, int b_X, int b_Y, double c_X, double c_Y) {
 	/*
@@ -327,7 +277,14 @@ double distance_between_vectors(Vector* v1, Vector* v2) {
 		d = fabs(b2 - b1) / sqrt(1 + pow(a1, 2));
 	}
 
-	if (a1 > 1) { // if vector is tilting to OY axis
+	if (fabs(a1) <= EPS) { // fixing bug with parallel gorizontal bones
+		if (max(y1, y2) < min(y3, y4) || min(y1, y2) > max(y3, y4))
+			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
+				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));
+		else
+			d = v1->p1->Y - v2->p1->Y;
+	}
+	else if (a1 > 1) { // if vector is tilting to OY axis
 		if (max(x1, x2) <= min(x3, x4) || min(x1, x2) >= max(x3, x4))
 			d = min(min(distance_between_verteces(v1->p1, v2->p1), distance_between_verteces(v1->p2, v2->p1)),
 				min(distance_between_verteces(v1->p1, v2->p2), distance_between_verteces(v1->p2, v2->p2)));

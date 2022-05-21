@@ -1,6 +1,6 @@
 
 typedef enum { VERTEX, VECTOR, VECTORARR, VARRAY, PROP } PHISICS_TYPE;
-typedef enum { CIRCLE, FUNCTION, BONES } COLLISION_TYPE;
+typedef enum { RADIUS, FUNCTION, BONES } COLLISION_TYPE;
 
 typedef struct {
 	/*
@@ -36,7 +36,7 @@ typedef struct Prop {
 	upper, lower, left and right collision Vectors. 'center' represents the point at the center of the object->
 	*/
 	COLLISION_TYPE collision_type; // Prop's collision model can be represented in certain ways: 
-	//	1) CIRCLE (most quick check, because i just check distance to the center of the target prop)
+	//	1) RING (most quick check, because i just check distance to the center of the target prop)
 	//	2) FUNCTION (i just have to check, if collision model's graphic or lines cross target prop's graphic)
 	//	3) LINES (most slow to check, must check if at least one line of pivot prop cross ta least 1 target prop's line)
 
@@ -48,6 +48,7 @@ typedef struct Prop {
 			VectorArr right;
 		};
 		unsigned collide_radius;
+		
 	};
 	Vertex* center;
 	bool nocollide;

@@ -4,7 +4,7 @@ LPCTSTR BONE_MODEL_PATH = L"assets\\bone.png";
 
 typedef unsigned long long ull;
 typedef enum { FIGURE, IMG, ENTITY, ENTLIST, ENTNODE } GRAPHIC_TYPE;
-typedef enum { ELLIPSE, LINE, RECT, CIRCLE } PRIMITIVE_TYPE;
+typedef enum { ELLIPSE, LINE, RECTANGLE} PRIMITIVE_TYPE;
 typedef enum { NONE, BONE, EFFECT, OBJECT, ITEM, MOB, WALL } ENTITY_TYPE;
 
 extern IMAGE images[MAX_IMAGE_NUM] = {}; // array, that contains all images, that will be rendered on canvas
@@ -245,17 +245,12 @@ void del_entity(Entity* self) {
 	free(self);
 }
 
-void setProp(Entity* self, VectorArr upper, VectorArr lower, VectorArr left, VectorArr right) {
+void setProp(Entity* self, Prop* prop) {
 	/*
 	Method, that creates new Prop, using given arrays and sets that prop as entity's phisics model
 	*/
-	if (self->phis_model == NULL) {
-		self->phis_model = init_prop(BONES, upper, lower, left, right);
-	}
-	else {
-		del_prop(self->phis_model);
-		self->phis_model = init_prop(BONES, upper, lower, left, right);
-	}
+	if (self->phis_model != NULL) del_prop(self->phis_model);
+	self->phis_model = prop;
 }
 
 void setTarget(Entity* self, const char* type, ...) {
@@ -342,7 +337,7 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 		VectorArr left = va_arg(vertex_arrs, VectorArr);
 		VectorArr right = va_arg(vertex_arrs, VectorArr);
 		va_end(vertex_arrs);
-		setProp(new_node->object, up, down, left, right);
+		setProp(new_node->object, init_prop(BONES, up, down, left, right));
 	}
 	else {
 		new_node->object->phis_model = NULL;

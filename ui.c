@@ -28,7 +28,7 @@ void button_press(char btn, Entity* main_ch) {
 		setPosition(ENTITY, main_ch, 200, 200);
 		break;
 	case 'B':
-		show_hide_all_bones(UP);
+		visiable_bones = !visiable_bones;
 		break;
 	case 'T':
 		registerEntity(x, y, "Train", L"assets\\train.png", Move_Left_Action, Go_Back_Action, "Prop:",
@@ -36,6 +36,7 @@ void button_press(char btn, Entity* main_ch) {
 			init_vectorarr(1, x, y + 100, x + 100, y + 100),
 			init_vectorarr(1, x, y, x, y + 100),
 			init_vectorarr(1, x + 100, y, x + 100, y + 100));
+		entity_list.tail->object->vision_radius = 100;
 		break;
 	case 'R':
 		kill_entnode(entity_list.tail);
@@ -77,7 +78,7 @@ void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* main_ch) { // fu
 	else if (message->message == WM_RBUTTONDOWN) {
 		setTarget(main_ch, "Points", message->x, message->y);
 		main_ch->loop_action = Move_to_Target_Action;
-		registerEntity(main_ch->target[_X] - 20, main_ch->target[_Y] - 20, "Pointer", L"assets\\pointer.png", NULL, NULL, "Not");
+		//registerEntity(main_ch->target[_X] - 20, main_ch->target[_Y] - 20, "Pointer", L"assets\\pointer.png", NULL, NULL, "Not");
 		//circle(main_ch->target[_X] - 25, main_ch->target[_Y] - 25, 50);
 	}
 }
@@ -100,11 +101,26 @@ void mainloop(const char* arg) {
 	registerEntity(100, 500, "main", MAIN_CH_MODEL_PATH, NULL, Push_Action, "not Prop");
 		//init_varray(1, 120, 100), init_varray(1, 120, 140), init_varray(1, 100, 120), init_varray(1, 140, 120));
 	Entity* main_ch = entity_list.tail->object;
-	setProp(main_ch, 
+	setProp(main_ch, init_prop(BONES, 
 		*init_vectorarr(1, 100, 500, 145, 540),
 		*init_vectorarr(1, 100, 550, 150, 555),
 		*init_vectorarr(1, 100, 500, 95, 555),
-		*init_vectorarr(1, 150, 505, 160, 555));
+		*init_vectorarr(1, 150, 505, 160, 555)));
+
+	int x = 100, y = 440;
+	registerEntity(x, y, "Box", L"assets\\box3.png", NULL, Push_Action, "Prop:",
+		init_vectorarr(1, x, y, x + 50, y),
+		init_vectorarr(1, x, y + 50, x + 50, y + 50),
+		init_vectorarr(1, x, y, x, y + 50),
+		init_vectorarr(1, x + 50, y, x + 50, y + 50));
+	y = 380;
+	x = 105;
+	registerEntity(x, y, "Box", L"assets\\box3.png", NULL, Push_Action, "Prop:",
+		init_vectorarr(1, x, y, x + 50, y),
+		init_vectorarr(1, x, y + 50, x + 50, y + 50),
+		init_vectorarr(1, x, y, x, y + 50),
+		init_vectorarr(1, x + 50, y, x + 50, y + 50));
+
 	
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT); //		create main window and put image on it
 	loadimage(&main_background, MAIN_BG_MODEL_PATH);
