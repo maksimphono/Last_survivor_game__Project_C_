@@ -109,25 +109,6 @@ void addEffect(Entity* ent) {
 	effectarray[effectnum++] = ent;
 }
 
-Figure* init_figure(int x, int y, LPCTSTR path_to_image) {
-	/*
-	constructor for 'Figure' struct
-	*/
-	static Figure* self;
-	self = (Figure*)malloc(sizeof(Figure));
-	IMAGE* img = setupImage(&self->img_index); // access to image in 'images' array
-	if (img != NULL) {
-		loadimage(img, path_to_image, 0, 0, true);
-		self->width = img->getwidth();
-		self->height = img->getheight();
-	}
-	self->X = x;
-	self->Y = y;
-
-	return self;
-}
-
-
 FigureArray* init_figarray(int length) {
 	static FigureArray* self;
 	self = (FigureArray*)malloc(sizeof(FigureArray));
@@ -146,19 +127,22 @@ Figure* popFigure(FigureArray* self) {
 
 FigureArray killed_figure = *init_figarray(50);
 
-Figure* setup_figure(int x, int y, LPCTSTR path_to_image) {
-	Figure* self;
-	if (killed_figure.length == 0) self = init_figure(x, y, path_to_image);
+Figure* init_figure(int x, int y, LPCTSTR path_to_image) {
+	static Figure* self;
+	if (killed_figure.length == 0) {
+		//self = init_figure(x, y, path_to_image);
+		self = (Figure*)malloc(sizeof(Figure));
+	}
 	else {
 		self = popFigure(&killed_figure);
-		IMAGE* img = setupImage(&self->img_index); // access to image in 'images' array
-		if (img != NULL) {
-			loadimage(img, path_to_image, 0, 0, true);
-			self->width = img->getwidth();
-			self->height = img->getheight();
-			self->X = x;
-			self->Y = y;
-		}
+	}	
+	IMAGE* img = setupImage(&self->img_index); // access to image in 'images' array
+	if (img != NULL) {
+		loadimage(img, path_to_image, 0, 0, true);
+		self->width = img->getwidth();
+		self->height = img->getheight();
+		self->X = x;
+		self->Y = y;
 	}
 	return self;
 }
@@ -177,7 +161,7 @@ int appendFigure(FigureArray* self, int x, int y, LPCTSTR path_to_image) {
 		self->_ = (Figure**)realloc(self->_, sizeof(self->_) + sizeof(Figure*) * 10);
 		self->max_length++;
 	}
-	new_fig = setup_figure(x, y, path_to_image);
+	new_fig = init_figure(x, y, path_to_image);
 	self->_[self->length++] = new_fig;
 	return self->length;
 }
@@ -196,7 +180,7 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	*/
 	static Entity* self;
 	self = (Entity*)malloc(sizeof(Entity));
-	self->figure = setup_figure(x, y, path_to_image);
+	self->figure = init_figure(x, y, path_to_image);
 	self->bones = *init_figarray(8);
 	//self->phis_model = *init_prop();
 	self->type = OBJECT;
@@ -215,7 +199,7 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 Entity* reinit_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
 	if (self == NULL) return NULL;
 	self->name = "object";
-	self->figure = setup_figure(x, y, path_to_image);
+	self->figure = init_figure(x, y, path_to_image);
 	//self->phis_model = *init_prop();
 	self->type = OBJECT;
 	self->X = x;
@@ -509,6 +493,7 @@ void kill_entnode(EntityNode* self) {
 	/*
 	Removes node from active entity list and adds to killed entity list
 	*/
+	del_prop(self->object->phis_model);
 	removeEntNode(&entity_list, self);
 	appendEntNode(&killed_entity_list, self);
 }

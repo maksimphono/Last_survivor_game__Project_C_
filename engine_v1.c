@@ -28,6 +28,10 @@ Vertex* init_vertex(int x, int y) {
 	return self;
 }
 
+//void reinit_vertex(Vertex* self, int x, int y) {
+
+//}
+
 void del_vertex(Vertex* self) {
 	/*
 	Destructor for 'Vertex' structure
@@ -92,6 +96,7 @@ void del_vectorarr(VectorArr* self) {
 	for (int i = 0; i < self->length; i++) {
 		del_vector(&self->vectors[i]);
 	}
+	//self->vectors = NULL;//(Vector*)realloc(self->vectors, 1);
 	self = (VectorArr*)realloc(self, 1);
 	free(self);
 }
