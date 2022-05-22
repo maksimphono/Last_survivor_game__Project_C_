@@ -6,8 +6,6 @@
 #include <conio.h>
 #include <time.h>
 extern IMAGE main_background = *setupImage(&null_image);
-extern DWORD* bg = NULL;
-extern const unsigned long* bg_src = NULL;
 extern bool visiable_bones = false;
 
 void put_transparent_picture(int dstx, int dsty, IMAGE* img, COLORREF color) { // put transparent picture
@@ -38,7 +36,7 @@ void put_transparent_picture(int dstx, int dsty, IMAGE* img, COLORREF color) { /
 
 void renderAll(bool);
 
-void sortEnt(int main_ch_index) {
+void sortEnt(int player_index) {
 	/*
 	Sorts 'entarray' (array of 'Entity') to render all entities in order
 	*/
@@ -47,36 +45,16 @@ void sortEnt(int main_ch_index) {
 	EntityNode* pivot;
 	EntityNode* currentNode_next;
 	register int steps = 0;
-	for (EntityNode* currentNode = main_entity_list.head->next; currentNode != NULL; currentNode = currentNode_next) {
+	for (EntityNode* currentNode = workingGameField->object_list->head->next; currentNode != NULL; currentNode = currentNode_next) {
 		lower_node = currentNode->prev;
 		pivot = currentNode;
 		while (lower_node != NULL && lower_node->prev != NULL && lower_node->object->lower_edge > pivot->object->lower_edge) lower_node = lower_node->prev;
 		currentNode_next = currentNode->next;
 		if (lower_node != pivot->prev) {
-			removeEntNode(&main_entity_list, pivot);
-			insertEntNode(&main_entity_list, lower_node, pivot);
+			removeEntNode(workingGameField->object_list, pivot);
+			insertEntNode(workingGameField->object_list, lower_node, pivot);
 		}
 	}
-}
-
-DWORD* paint_over(Figure* fig) {
-	DWORD* src = GetImageBuffer(&images[fig->img_index]);
-	DWORD* dst = GetImageBuffer(GetWorkingImage());
-	int dstx = fig->X, dsty = fig->Y;
-	int image_width = images[fig->img_index].getwidth(), image_height = images[fig->img_index].getheight(), screen_width;
-
-	if (GetWorkingImage() == NULL)
-		screen_width = getwidth();
-	else
-		screen_width = GetWorkingImage()->getwidth();
-
-	for (int j = 0; j < image_height; j++) {
-		for (int p = 0; p < image_width; p++) {
-			ull real_pixel_pos = (j + dsty) * screen_width + dstx + p;
-			dst[real_pixel_pos] = bg[real_pixel_pos];
-		}
-	}
-	return dst;
 }
 
 DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool render) {
@@ -109,7 +87,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		for (int j = 0; j < image_height; j++) {
 			for (int p = 0; p < dx; p++) {
 				ull real_pixel_pos = (j + dsty) * screen_width + dstx + p;
-				dst[real_pixel_pos] = bg[real_pixel_pos];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
 			}
 		}
 		break;
@@ -117,8 +95,8 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		for (int j = 0; j < image_height; j++) {
 			for (int p = 0; p < -dx; p++) {
 				ull real_pixel_pos = (j + dsty) * screen_width + dstx + image_width - p;
-				dst[real_pixel_pos] = bg[real_pixel_pos];
-				dst[real_pixel_pos - 1] = bg[real_pixel_pos - 1];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
+				dst[real_pixel_pos - 1] = workingGameField->bg_code[real_pixel_pos - 1];
 			}
 		}
 	}
@@ -127,7 +105,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		for (int i = 0; i < image_width; i++) {
 			for (int p = 0; p < dy; p++) {
 				ull real_pixel_pos = (dsty + p) * screen_width + dstx + i;
-				dst[real_pixel_pos] = bg[real_pixel_pos];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
 			}
 		}
 		break;
@@ -135,9 +113,9 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		for (int i = 0; i < image_width; i++) {
 			for (int p = 0; p < -dy; p++) {
 				ull real_pixel_pos = (dsty + image_height - p) * screen_width + dstx + i;
-				dst[real_pixel_pos] = bg[real_pixel_pos];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
 				real_pixel_pos = (dsty + image_height - p - 1) * screen_width + dstx + i;
-				dst[real_pixel_pos] = bg[real_pixel_pos];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
 			}
 		}
 	}
@@ -154,7 +132,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 				dst[real_pixel_pos] = src[image_pixel_pos];
 			}
 			else { // if pivot pixel has transparent color, i paint it with background's pixel
-				dst[real_pixel_pos] = bg[real_pixel_pos];
+				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
 			}
 		}
 	}
@@ -185,7 +163,7 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 	int obstacle_num = 0;
 	if (self->phis_model == NULL) return false;
 	if (self_model->nocollide) return false;
-	for (EntityNode* currentNode = main_entity_list.head; currentNode != NULL; currentNode = currentNode->next) {
+	for (EntityNode* currentNode = workingGameField->object_list->head; currentNode != NULL; currentNode = currentNode->next) {
 		node_model = currentNode->object->phis_model;
 		/*
 		switch (side) {
@@ -366,7 +344,7 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 	*/
 	static bool visiable = false;
 	if (!visiable) { // add all bones to 'effectarray'
-		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+		for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 			show_bones(node, NOCOLLIDE);
 		}
 		//for (Entity** ent = entarray; ent != entarray + entnum; ent++)
@@ -374,7 +352,7 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 		visiable = true;
 	}
 	else { // delete all bones from 'effectarray'
-		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+		for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 			if (node->object->phis_model) clearFigureArr(&node->object->bones);
 		}
 		visiable = false;
@@ -426,7 +404,7 @@ const char* Kill_Action(Entity* self, Entity* obst, int* dx, int* dy, COLLISION_
 
 
 void all_actions(int tick) {
-	for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 		if (node->object->loop_action != NULL) node->object->loop_action(node->object, tick);
 	}
 }
@@ -448,9 +426,8 @@ void renderBones(Entity* self) {
 	}
 }
 
-void render(Figure* figure) {
-	DWORD* dst;
-	move_transparent_image(0, 0, figure, BLACK, false);
+void renderBG() {
+	move_transparent_image(0, 0, getWorkingField()->background_source, BLACK, false);
 }
 
 void renderAll(bool flag) {
@@ -460,14 +437,14 @@ void renderAll(bool flag) {
 	DWORD* dst;
 	VectorArr** vector_arrs;
 	if (flag) {
-		memmove(bg, bg_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
-		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+		memmove(workingGameField->bg_code, workingGameField->bg_code_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
+		for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 			dst = move_transparent_image(0, 0, node->object->figure, BLACK, false);
-			memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));	
+			memmove(workingGameField->bg_code, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
 		}
 
 		if (visiable_bones) {
-			for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+			for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 				renderBones(node->object);
 			}
 		}

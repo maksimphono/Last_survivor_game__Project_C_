@@ -5,7 +5,8 @@ int step = 1;
 const int sleeptime = 1;
 unsigned tick = 0;
 
-void button_press(char btn, Entity* main_ch) {
+
+void button_press(char btn, Entity* player) {
 	/*
 	Manages control buttons
 	*/
@@ -13,24 +14,27 @@ void button_press(char btn, Entity* main_ch) {
 
 	switch (btn) {
 	case 'W':
-		move(ENTITY, main_ch, 0, -step);
+		move(ENTITY, player, 0, -step);
 		break;
 	case 'S':
-		move(ENTITY, main_ch, 0, step);
+		move(ENTITY, player, 0, step);
 		break;
 	case 'A':
-		move(ENTITY, main_ch, -step, 0);
+		move(ENTITY, player, -step, 0);
 		break;
 	case 'D':
-		move(ENTITY, main_ch, step, 0);
+		move(ENTITY, player, step, 0);
 		break;
 	case 'C':
-		setPosition(main_ch, 200, 200);
+		setPosition(player, 200, 200);
 		
-		//paint_over(main_ch->figure);
+		//paint_over(player->figure);
 		break;
 	case 'B':
 		visiable_bones = !visiable_bones;
+		break;
+	case 'G':
+		//setupGameField(&gf_1);
 		break;
 	case 'T':
 		registerEntity(x, y, "Train", L"assets\\train.png", Move_Left_Action, Go_Back_Action, "Prop:",
@@ -38,13 +42,13 @@ void button_press(char btn, Entity* main_ch) {
 			init_vectorarr(1, x, y + 100, x + 100, y + 100),
 			init_vectorarr(1, x, y, x, y + 100),
 			init_vectorarr(1, x + 100, y, x + 100, y + 100));
-		main_entity_list.tail->object->vision_radius = 100;
+		getWorkingField()->object_list->tail->object->vision_radius = 100;
 		break;
 	case 'R':
-		kill_entnode(main_entity_list.tail);
+		kill_entnode(getWorkingField()->object_list->tail);
 		break;
 	case 'K':
-		kill_all_nodes(&main_entity_list);
+		kill_all_nodes(getWorkingField()->object_list);
 		break;
 	}
 }
@@ -65,9 +69,9 @@ void putcircle(int x, int y, bool pressed) {
 	}
 }
 
-void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* main_ch) { // function, that manage all events from mainloop
+void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* player) { // function, that manage all events from mainloop
 	if (message->message == WM_KEYDOWN)
-		button_press(message->vkcode, main_ch);
+		button_press(message->vkcode, player);
 	
 	if (message->message == WM_LBUTTONDOWN) {
 		int x = message->x - 25, y = message->y - 25;
@@ -79,20 +83,33 @@ void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* main_ch) { // fu
 		message->message = NULL;
 	}
 	else if (message->message == WM_RBUTTONDOWN) {
-		setTarget(main_ch, "Points", message->x, message->y);
-		main_ch->loop_action = Move_to_Target_Action;
-		//registerEntity(main_ch->target[_X] - 20, main_ch->target[_Y] - 20, "Pointer", L"assets\\pointer.png", NULL, NULL, "Not");
-		//circle(main_ch->target[_X] - 25, main_ch->target[_Y] - 25, 50);
+		setTarget(player, "Points", message->x, message->y);
+		player->loop_action = Move_to_Target_Action;
 	}
 }
 
 void mainloop(const char* arg) {
 	MOUSEMSG message_mouse;
 	ExMessage message_key;
-	bool started = false;
 
-	// creating entities
-	
+	Entity* player;
+
+	GameField gf = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
+	GameField gf_1 = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
+
+
+	setupGameField(&gf_1);
+
+	int x = 100, y = 440;
+	registerEntity(x, y, "Box", L"assets\\box3.png", NULL, Push_Action, "Prop:",
+		init_vectorarr(1, x, y, x + 50, y),
+		init_vectorarr(1, x, y + 50, x + 50, y + 50),
+		init_vectorarr(1, x, y, x, y + 50),
+		init_vectorarr(1, x + 50, y, x + 50, y + 50));
+
+	setupGameField(&gf);
+	//workingGameField = &gf;
+
 	registerEntity(20, 15, "none", L"assets\\box1.png", NULL, NULL, "without prop");
 	registerEntity(200, 150, "none", L"assets\\plant.png", NULL, NULL, "without prop");
 	registerEntity(400, 150, "none", L"assets\\plantNULL.png", NULL, NULL, "without prop");
@@ -103,14 +120,14 @@ void mainloop(const char* arg) {
 	registerEntity(0, 420, "Box", L"assets\\railway.png", NULL, NULL, "without prop");
 	registerEntity(100, 500, "main", MAIN_CH_MODEL_PATH, NULL, Kill_Action, "not Prop");
 		//init_varray(1, 120, 100), init_varray(1, 120, 140), init_varray(1, 100, 120), init_varray(1, 140, 120));
-	Entity* main_ch = main_entity_list.tail->object;
-	setProp(main_ch, init_prop(BONES, 
+	player = getWorkingField()->object_list->tail->object;
+	setProp(player, init_prop(BONES, 
 		*init_vectorarr(1, 100, 500, 145, 540),
 		*init_vectorarr(1, 100, 550, 150, 555),
 		*init_vectorarr(1, 100, 500, 95, 555),
 		*init_vectorarr(1, 150, 505, 160, 555)));
 
-	int x = 100, y = 440;
+	x = 100; y = 440;
 	registerEntity(x, y, "Box", L"assets\\box3.png", NULL, Push_Action, "Prop:",
 		init_vectorarr(1, x, y, x + 50, y),
 		init_vectorarr(1, x, y + 50, x + 50, y + 50),
@@ -126,13 +143,10 @@ void mainloop(const char* arg) {
 
 	
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT); //		create main window and put image on it
-	loadimage(&main_background, MAIN_BG_MODEL_PATH);
-	bg = GetImageBuffer(&main_background);
-	bg_src = GetImageBuffer(&main_background);
-	Figure* main_bg_f = init_figure(0, 0, MAIN_BG_MODEL_PATH);
-	
-	
-	GameField gf = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
+	//loadimage(&main_background, MAIN_BG_MODEL_PATH);
+	//workingGameField->bg_code = GetImageBuffer(&main_background);
+	//bg_src = GetImageBuffer(&main_background);
+	//Figure* main_bg_f = init_figure(0, 0, MAIN_BG_MODEL_PATH);
 	
 	//setupGameField();
 	BeginBatchDraw();
@@ -147,20 +161,13 @@ void mainloop(const char* arg) {
 		
 		//message_key.vkcode = '0';
 		
-		
-		move_transparent_image(0, 0, main_bg_f, WHITE, true);
-		//message_key.lbutton = false;
-		//if (!started)
-			//started = peekmessage(&message_key, EM_KEY | EM_MOUSE);//			get event
-		//else
-			//peekmessage(&message_key, EM_KEY | EM_MOUSE);//			get event
+		renderBG();
+		//move_transparent_image(0, 0, gf.background_source, WHITE, true);
 		getmessage(&message_key, EM_KEY | EM_MOUSE);
 		
-		event_manager(&message_key, &message_mouse, main_ch); //				manage event
+		event_manager(&message_key, &message_mouse, player); //				manage event
 		if (message_key.vkcode == 'B' || message_key.vkcode == 'R') message_key.vkcode = 128;
 
-		//move(FIGURE, (&main_ch)->figure, 0, 0);
-		//if (started) 
 		all_actions(tick);
 		renderAll(true);
 		FlushBatchDraw();

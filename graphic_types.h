@@ -93,6 +93,8 @@ typedef struct GameField {
 	Figure* background;
 	Figure* background_source;
 	LPCTSTR storage_file_path;
+	DWORD* bg_code;
+	DWORD* bg_code_src;
 	GameField* upper;
 	GameField* lower;
 	GameField* left;
@@ -100,24 +102,22 @@ typedef struct GameField {
 	EntityList* object_list;
 } GameField;
 
+GameField* workingGameField;
+
+GameField* getWorkingField() {
+	return workingGameField;
+}
+
+
 EntityList* init_entlist();
 
-EntityList main_entity_list = *init_entlist();
-
 EntityList killed_main_entity_list = *init_entlist();
-
-extern Entity* effectarray[MAX_ENTITY_NUM] = {}; // all effects will be stored at this array. Effect is entity without phisics model. It's rendered after actual objects
-extern int effectnum = 0;
 
 EntityNode* appendEntNode(EntityList*, Entity*);
 EntityNode* appendEntNode(EntityList*, EntityNode*);
 
 void addEnt(Entity* ent) {
-	appendEntNode(&main_entity_list, ent);
-}
-
-void addEffect(Entity* ent) {
-	effectarray[effectnum++] = ent;
+	appendEntNode(workingGameField->object_list, ent);
 }
 
 FigureArray* init_figarray(int length) {
@@ -213,7 +213,7 @@ void kill_entity(Entity* self) {
 	/*
 	Removes EntityNode with that object
 	*/
-	for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 		if (node->object == self) kill_entnode(node);
 	}
 }
@@ -322,14 +322,14 @@ GameField* init_gamefield(LPCTSTR path_to_storage_file, LPCTSTR background_image
 	self->background = init_figure(0, 0, background_image_path);
 	self->background_source = init_figure(0, 0, background_image_path);
 	self->storage_file_path = path_to_storage_file;
+	self->bg_code = NULL;
+	self->bg_code_src = NULL;
 	self->upper = NULL;
 	self->lower = NULL;
 	self->left = NULL;
 	self->right = NULL;
 	return self;
 }
-
-GameField* workingGameField;
 
 void setNeighbours(GameField* self, GameField* upper, GameField* lower, GameField* left, GameField* right) {
 	self->upper = upper;
@@ -344,7 +344,10 @@ void setNeighbours(GameField* self, GameField* upper, GameField* lower, GameFiel
 
 void setupGameField(GameField* self) {
 	workingGameField = self;
-	main_entity_list = *self->object_list;
+	self->bg_code = GetImageBuffer(&images[self->background->img_index]);
+	self->bg_code_src = GetImageBuffer(&images[self->background->img_index]);
+
+	//main_entity_list = *self->object_list;
 }
 
 // GameField methods /\
@@ -359,7 +362,7 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 
 	if (killed_main_entity_list.length == 0) {
 		new_node = init_entnode(init_entity(x, y, path_to_image));
-		appendEntNode(&main_entity_list, new_node);
+		appendEntNode(workingGameField->object_list, new_node);
 	}
 	else {
 		new_node = animate_entnode();
@@ -555,7 +558,7 @@ void kill_entnode(EntityNode* self) {
 	*/
 	//del_prop(self->object->phis_model);
 	self->object->phis_model = NULL;
-	removeEntNode(&main_entity_list, self);
+	removeEntNode(workingGameField->object_list, self);
 	appendEntNode(&killed_main_entity_list, self);
 }
 
@@ -576,7 +579,7 @@ EntityNode* animate_entnode() {
 	/*
 	Removes node from killed entity list and adds to active entity list
 	*/
-	return appendEntNode(&main_entity_list, popEntNode(&killed_main_entity_list, -1));
+	return appendEntNode(workingGameField->object_list, popEntNode(&killed_main_entity_list, -1));
 }
 
 EntityNode* getEntNode(EntityList* self, int index) {
