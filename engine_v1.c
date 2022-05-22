@@ -76,10 +76,19 @@ VectorArr* init_vectorarr(int n, ...) {
 	self = (VectorArr*)malloc(sizeof(VectorArr));
 	va_list arguments;
 	int x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+	int* x_array = (int*)calloc(MAX_VERTEX_NUM, sizeof(int));
+	int* y_array = (int*)calloc(MAX_VERTEX_NUM, sizeof(int));
 	self->vectors = (Vector*)malloc(sizeof(Vector));
 	self->length = 0;
 	va_start(arguments, n);
-	if (n) {
+	if (n == 0) {
+		x_array = va_arg(arguments, int*);
+		y_array = va_arg(arguments, int*);
+		for (int i = 0; x_array[i] != 0 && y_array[i] != 0; i += 2) {
+			addVector(self, x_array[i], y_array[i], x_array[i + 1], y_array[i + 1]);
+		}
+	}
+	else if (n) {
 		for (int i = 0; i < n; i++) {
 			x1 = va_arg(arguments, int);
 			y1 = va_arg(arguments, int);
@@ -354,31 +363,35 @@ const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE
 	VectorArr* prop_varray = NULL;
 
 	if (self == NULL || prop == NULL) return false;
-	switch (side) {
-	case UP:
-		self_varray = &self->upper;
-		prop_varray = &prop->lower;
-		break;
-	case DOWN:
-		self_varray = &self->lower;
-		prop_varray = &prop->upper;
-		break;
-	case LEFT:
-		self_varray = &self->left;
-		prop_varray = &prop->right;
-		break;
-	case RIGHT:
-		self_varray = &self->right;
-		prop_varray = &prop->left;
-		break;
-	default:
-		return false;
-	}
-	for (Vector* v1 = self_varray->vectors; v1 != self_varray->vectors + self_varray->length; v1++) {
-		for (Vector* v2 = prop_varray->vectors; v2 != prop_varray->vectors + prop_varray->length; v2++) {
-			if (new_line_cross(v1, v2, min_distance)) return true;
+	
+	if (self->collision_type == BONES && prop->collision_type == BONES) {
+		switch (side) {
+		case UP:
+			self_varray = &self->upper;
+			prop_varray = &prop->lower;
+			break;
+		case DOWN:
+			self_varray = &self->lower;
+			prop_varray = &prop->upper;
+			break;
+		case LEFT:
+			self_varray = &self->left;
+			prop_varray = &prop->right;
+			break;
+		case RIGHT:
+			self_varray = &self->right;
+			prop_varray = &prop->left;
+			break;
+		default:
+			return false;
+		}
+		for (Vector* v1 = self_varray->vectors; v1 != self_varray->vectors + self_varray->length; v1++) {
+			for (Vector* v2 = prop_varray->vectors; v2 != prop_varray->vectors + prop_varray->length; v2++) {
+				if (new_line_cross(v1, v2, min_distance)) return true;
+			}
 		}
 	}
+		
 	return false;
 }
 /*

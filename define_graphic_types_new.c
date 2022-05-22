@@ -47,16 +47,36 @@ void sortEnt(int main_ch_index) {
 	EntityNode* pivot;
 	EntityNode* currentNode_next;
 	register int steps = 0;
-	for (EntityNode* currentNode = entity_list.head->next; currentNode != NULL; currentNode = currentNode_next) {
+	for (EntityNode* currentNode = main_entity_list.head->next; currentNode != NULL; currentNode = currentNode_next) {
 		lower_node = currentNode->prev;
 		pivot = currentNode;
 		while (lower_node != NULL && lower_node->prev != NULL && lower_node->object->lower_edge > pivot->object->lower_edge) lower_node = lower_node->prev;
 		currentNode_next = currentNode->next;
 		if (lower_node != pivot->prev) {
-			removeEntNode(&entity_list, pivot);
-			insertEntNode(&entity_list, lower_node, pivot);
+			removeEntNode(&main_entity_list, pivot);
+			insertEntNode(&main_entity_list, lower_node, pivot);
 		}
 	}
+}
+
+DWORD* paint_over(Figure* fig) {
+	DWORD* src = GetImageBuffer(&images[fig->img_index]);
+	DWORD* dst = GetImageBuffer(GetWorkingImage());
+	int dstx = fig->X, dsty = fig->Y;
+	int image_width = images[fig->img_index].getwidth(), image_height = images[fig->img_index].getheight(), screen_width;
+
+	if (GetWorkingImage() == NULL)
+		screen_width = getwidth();
+	else
+		screen_width = GetWorkingImage()->getwidth();
+
+	for (int j = 0; j < image_height; j++) {
+		for (int p = 0; p < image_width; p++) {
+			ull real_pixel_pos = (j + dsty) * screen_width + dstx + p;
+			dst[real_pixel_pos] = bg[real_pixel_pos];
+		}
+	}
+	return dst;
 }
 
 DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool render) {
@@ -142,26 +162,18 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 	//memmove(bg, dst, screen_width * SCREEN_HEIGHT * sizeof(DWORD));
 }
 
-void setPosition(GRAPHIC_TYPE type, ...) {
+void setPosition(Entity* self, int x, int y) {
 	/*
 	Sets object (second argument) of type 'type' X coordinate as value of 'third argument', Y coordinate as value of 'fourth' argument
 	*/
-	va_list arguments;
-	va_start(arguments, type);
-	Entity* object = (Entity*)malloc(sizeof(Entity));
-	switch (type) {
-	case FIGURE:
-		object->figure = va_arg(arguments, Figure*);
-		object->figure->X = va_arg(arguments, int);
-		object->figure->Y = va_arg(arguments, int);
-		break;
-	case ENTITY:
-		object = va_arg(arguments, Entity*);
-		object->figure->X = va_arg(arguments, int);
-		object->figure->Y = va_arg(arguments, int);
-		break;
-	}
-	va_end(arguments);
+	shift(PROP, x - self->phis_model->center->X, y - self->phis_model->center->Y, self->phis_model);
+	self->X = x - self->figure->width / 2;
+	self->Y = y - self->figure->height / 2;
+	self->center_x = x;
+	self->center_y = y;
+	self->figure->X = x - self->figure->width / 2;
+	self->figure->Y = y - self->figure->height / 2;
+	self->lower_edge = self->Y + self->figure->height;
 }
 bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* self, int step, COLLISION_SIDE side) {
 	/*
@@ -171,8 +183,9 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 	Prop* node_model = NULL;
 	bool correct_direction = true;
 	int obstacle_num = 0;
+	if (self->phis_model == NULL) return false;
 	if (self_model->nocollide) return false;
-	for (EntityNode* currentNode = entity_list.head; currentNode != NULL; currentNode = currentNode->next) {
+	for (EntityNode* currentNode = main_entity_list.head; currentNode != NULL; currentNode = currentNode->next) {
 		node_model = currentNode->object->phis_model;
 		/*
 		switch (side) {
@@ -353,7 +366,7 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 	*/
 	static bool visiable = false;
 	if (!visiable) { // add all bones to 'effectarray'
-		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
+		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
 			show_bones(node, NOCOLLIDE);
 		}
 		//for (Entity** ent = entarray; ent != entarray + entnum; ent++)
@@ -361,7 +374,7 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 		visiable = true;
 	}
 	else { // delete all bones from 'effectarray'
-		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
+		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
 			if (node->object->phis_model) clearFigureArr(&node->object->bones);
 		}
 		visiable = false;
@@ -406,9 +419,14 @@ const char* Move_to_Target_Action(Entity* self, int tick) {
 	return "Move directly";
 }
 
+const char* Kill_Action(Entity* self, Entity* obst, int* dx, int* dy, COLLISION_SIDE side) {
+	kill_entity(obst);
+	return "Kill";
+}
+
 
 void all_actions(int tick) {
-	for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
+	for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
 		if (node->object->loop_action != NULL) node->object->loop_action(node->object, tick);
 	}
 }
@@ -423,8 +441,16 @@ void renderBones(Entity* self) {
 			line(vector->p1->X, vector->p1->Y, vector->p2->X, vector->p2->Y);
 			setlinecolor(GREEN);
 			circle(self->center_x, self->center_y, self->vision_radius);
+			circle(self->center_x, self->center_y, 2);
+			setlinecolor(BLUE);
+			circle(self->center_x, self->lower_edge, 2);
 		}
 	}
+}
+
+void render(Figure* figure) {
+	DWORD* dst;
+	move_transparent_image(0, 0, figure, BLACK, false);
 }
 
 void renderAll(bool flag) {
@@ -435,14 +461,16 @@ void renderAll(bool flag) {
 	VectorArr** vector_arrs;
 	if (flag) {
 		memmove(bg, bg_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
-		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
+		for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
 			dst = move_transparent_image(0, 0, node->object->figure, BLACK, false);
-			memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
-			renderBones(node->object);
+			memmove(bg, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));	
 		}
 
-		for (EntityNode* node = entity_list.head; node != NULL; node = node->next) {
-			renderBones(node->object);
+		if (visiable_bones) {
+			for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+				renderBones(node->object);
+			}
 		}
+		
 	}
 }

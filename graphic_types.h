@@ -89,11 +89,22 @@ typedef struct EntityList {
 	EntityNode* tail;
 } EntityList;
 
+typedef struct GameField {
+	Figure* background;
+	Figure* background_source;
+	LPCTSTR storage_file_path;
+	GameField* upper;
+	GameField* lower;
+	GameField* left;
+	GameField* right;
+	EntityList* object_list;
+} GameField;
+
 EntityList* init_entlist();
 
-EntityList entity_list = *init_entlist();
+EntityList main_entity_list = *init_entlist();
 
-EntityList killed_entity_list = *init_entlist();
+EntityList killed_main_entity_list = *init_entlist();
 
 extern Entity* effectarray[MAX_ENTITY_NUM] = {}; // all effects will be stored at this array. Effect is entity without phisics model. It's rendered after actual objects
 extern int effectnum = 0;
@@ -102,7 +113,7 @@ EntityNode* appendEntNode(EntityList*, Entity*);
 EntityNode* appendEntNode(EntityList*, EntityNode*);
 
 void addEnt(Entity* ent) {
-	appendEntNode(&entity_list, ent);
+	appendEntNode(&main_entity_list, ent);
 }
 
 void addEffect(Entity* ent) {
@@ -196,6 +207,17 @@ Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
 	return self;
 }
 
+void kill_entnode(EntityNode* self);
+
+void kill_entity(Entity* self) {
+	/*
+	Removes EntityNode with that object
+	*/
+	for (EntityNode* node = main_entity_list.head; node != NULL; node = node->next) {
+		if (node->object == self) kill_entnode(node);
+	}
+}
+
 Entity* reinit_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
 	if (self == NULL) return NULL;
 	self->name = "object";
@@ -252,9 +274,10 @@ void setTarget(Entity* self, const char* type, ...) {
 		Y = va_arg(argument, int);
 	}
 	else if (type == "Object") {
+		// rewrite !!
 		object = va_arg(argument, Entity*);
-		X = object->X;
-		Y = object->Y;
+		X = object->center_x;
+		Y = object->center_y;
 	}
 	self->target[_X] = X;
 	self->target[_Y] = Y;
@@ -266,11 +289,9 @@ void setTarget(Entity* self, const char* type, ...) {
 
 void setAxis(Entity* self) {
 	if (self->target[_X] < 0 || self->target[_Y] < 0) return;
-
 }
 
 EntityNode* animate_entnode();
-
 
 EntityNode* init_entnode(Entity* object) {
 	static EntityNode* self;
@@ -292,6 +313,42 @@ EntityList* init_entlist() {
 	return self;
 }
 
+// GameField methods:
+
+GameField* init_gamefield(LPCTSTR path_to_storage_file, LPCTSTR background_image_path) {
+	static GameField* self;
+	self = (GameField*)malloc(sizeof(GameField));
+	self->object_list = init_entlist();
+	self->background = init_figure(0, 0, background_image_path);
+	self->background_source = init_figure(0, 0, background_image_path);
+	self->storage_file_path = path_to_storage_file;
+	self->upper = NULL;
+	self->lower = NULL;
+	self->left = NULL;
+	self->right = NULL;
+	return self;
+}
+
+GameField* workingGameField;
+
+void setNeighbours(GameField* self, GameField* upper, GameField* lower, GameField* left, GameField* right) {
+	self->upper = upper;
+	if (upper) upper->lower = self;
+	self->lower = lower;
+	if (lower) lower->upper = self;
+	self->left = left;
+	if (left) left->right = self;
+	self->right = right;
+	if (right) right->left = self;
+}
+
+void setupGameField(GameField* self) {
+	workingGameField = self;
+	main_entity_list = *self->object_list;
+}
+
+// GameField methods /\
+
 EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
 	/*
 	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
@@ -300,9 +357,9 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 	*/
 	EntityNode* new_node;
 
-	if (killed_entity_list.length == 0) {
+	if (killed_main_entity_list.length == 0) {
 		new_node = init_entnode(init_entity(x, y, path_to_image));
-		appendEntNode(&entity_list, new_node);
+		appendEntNode(&main_entity_list, new_node);
 	}
 	else {
 		new_node = animate_entnode();
@@ -468,7 +525,10 @@ void removeEntNode(EntityList* self, EntityNode* node) {
 	EntityNode* currentNode = NULL;
 	EntityNode* previousNode = NULL;
 	if (self->head == NULL) return;
-	if (node->next == NULL) {
+	if (self->length == 1) {
+		self->head = self->tail = NULL;
+	}
+	else if (node->next == NULL) {
 		currentNode = self->tail;
 		self->tail = self->tail->prev;
 		self->tail->next = NULL;
@@ -493,16 +553,30 @@ void kill_entnode(EntityNode* self) {
 	/*
 	Removes node from active entity list and adds to killed entity list
 	*/
-	del_prop(self->object->phis_model);
-	removeEntNode(&entity_list, self);
-	appendEntNode(&killed_entity_list, self);
+	//del_prop(self->object->phis_model);
+	self->object->phis_model = NULL;
+	removeEntNode(&main_entity_list, self);
+	appendEntNode(&killed_main_entity_list, self);
+}
+
+void kill_all_nodes(EntityList* list) {
+	/*
+	Kills all nodes in the list
+	*/
+	EntityNode* node = list->tail;
+	EntityNode* prev_node = list->tail->prev;
+	while (list->length > 0 && node != NULL) {
+		prev_node = node->prev;
+		kill_entnode(node);
+		node = prev_node;
+	}
 }
 
 EntityNode* animate_entnode() {
 	/*
 	Removes node from killed entity list and adds to active entity list
 	*/
-	return appendEntNode(&entity_list, popEntNode(&killed_entity_list, -1));
+	return appendEntNode(&main_entity_list, popEntNode(&killed_main_entity_list, -1));
 }
 
 EntityNode* getEntNode(EntityList* self, int index) {

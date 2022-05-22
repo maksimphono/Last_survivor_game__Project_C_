@@ -25,7 +25,9 @@ void button_press(char btn, Entity* main_ch) {
 		move(ENTITY, main_ch, step, 0);
 		break;
 	case 'C':
-		setPosition(ENTITY, main_ch, 200, 200);
+		setPosition(main_ch, 200, 200);
+		
+		//paint_over(main_ch->figure);
 		break;
 	case 'B':
 		visiable_bones = !visiable_bones;
@@ -36,13 +38,14 @@ void button_press(char btn, Entity* main_ch) {
 			init_vectorarr(1, x, y + 100, x + 100, y + 100),
 			init_vectorarr(1, x, y, x, y + 100),
 			init_vectorarr(1, x + 100, y, x + 100, y + 100));
-		entity_list.tail->object->vision_radius = 100;
+		main_entity_list.tail->object->vision_radius = 100;
 		break;
 	case 'R':
-		kill_entnode(entity_list.tail);
+		kill_entnode(main_entity_list.tail);
 		break;
-	case 'M':
-		move_directly(main_ch, 500,550, 5);
+	case 'K':
+		kill_all_nodes(&main_entity_list);
+		break;
 	}
 }
 
@@ -98,9 +101,9 @@ void mainloop(const char* arg) {
 	registerEntity(20, 540, "none", L"assets\\plant.png", NULL, NULL, "without prop");
 	registerEntity(100, 30, "none", L"assets\\garage.png", NULL, NULL, "without prop");
 	registerEntity(0, 420, "Box", L"assets\\railway.png", NULL, NULL, "without prop");
-	registerEntity(100, 500, "main", MAIN_CH_MODEL_PATH, NULL, Push_Action, "not Prop");
+	registerEntity(100, 500, "main", MAIN_CH_MODEL_PATH, NULL, Kill_Action, "not Prop");
 		//init_varray(1, 120, 100), init_varray(1, 120, 140), init_varray(1, 100, 120), init_varray(1, 140, 120));
-	Entity* main_ch = entity_list.tail->object;
+	Entity* main_ch = main_entity_list.tail->object;
 	setProp(main_ch, init_prop(BONES, 
 		*init_vectorarr(1, 100, 500, 145, 540),
 		*init_vectorarr(1, 100, 550, 150, 555),
@@ -128,9 +131,13 @@ void mainloop(const char* arg) {
 	bg_src = GetImageBuffer(&main_background);
 	Figure* main_bg_f = init_figure(0, 0, MAIN_BG_MODEL_PATH);
 	
+	
+	GameField gf = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
+	
+	//setupGameField();
 	BeginBatchDraw();
 	SetWorkingImage();
-	putimage(0, 0, &main_background);
+	//putimage(0, 0, &main_background);
 	renderAll(true);
 	for (;; tick++) {
 		if (tick == MAX_INT) tick = 0;
@@ -139,6 +146,7 @@ void mainloop(const char* arg) {
 		 // 	//setcliprgn(hrgn);// new
 		
 		//message_key.vkcode = '0';
+		
 		
 		move_transparent_image(0, 0, main_bg_f, WHITE, true);
 		//message_key.lbutton = false;
