@@ -1,8 +1,11 @@
+#ifndef GRAPHIC_TYPES
+#define GRAPHIC_TYPES "graphic_types"
+typedef unsigned long long ull;
+
 LPCTSTR MAIN_BG_MODEL_PATH = L"assets\\main_bg_01.png";
 LPCTSTR MAIN_CH_MODEL_PATH = L"assets\\test_transp.png";
 LPCTSTR BONE_MODEL_PATH = L"assets\\bone.png";
 
-typedef unsigned long long ull;
 typedef enum { FIGURE, IMG, ENTITY, ENTLIST, ENTNODE } GRAPHIC_TYPE;
 typedef enum { ELLIPSE, LINE, RECTANGLE} PRIMITIVE_TYPE;
 typedef enum { NONE, BONE, EFFECT, OBJECT, ITEM, MOB, WALL } ENTITY_TYPE;
@@ -103,6 +106,8 @@ typedef struct GameField {
 } GameField;
 
 GameField* workingGameField;
+
+Entity* player;
 
 GameField* getWorkingField() {
 	return workingGameField;
@@ -359,6 +364,7 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 	field as this new prop
 	*/
 	EntityNode* new_node;
+	int X, Y, radius;
 
 	if (killed_main_entity_list.length == 0) {
 		new_node = init_entnode(init_entity(x, y, path_to_image));
@@ -376,12 +382,22 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 	if (with_prop == "Prop:") {
 		va_list vertex_arrs;
 		va_start(vertex_arrs, with_prop);
-		VectorArr up = va_arg(vertex_arrs, VectorArr);
-		VectorArr down = va_arg(vertex_arrs, VectorArr);
-		VectorArr left = va_arg(vertex_arrs, VectorArr);
-		VectorArr right = va_arg(vertex_arrs, VectorArr);
+		const char* type = va_arg(vertex_arrs, const char*);
+		if (type == "BONES") {
+			VectorArr up = va_arg(vertex_arrs, VectorArr);
+			VectorArr down = va_arg(vertex_arrs, VectorArr);
+			VectorArr left = va_arg(vertex_arrs, VectorArr);
+			VectorArr right = va_arg(vertex_arrs, VectorArr);
+			setProp(new_node->object, init_prop(BONES, up, down, left, right));
+		} else if (type == "RADIUS"){
+			radius = va_arg(vertex_arrs, unsigned);
+			setProp(new_node->object, init_prop(RADIUS, x + new_node->object->figure->width / 2, y + new_node->object->figure->height / 2, radius));
+			//X = va_arg(vertex_arrs, int);
+			//Y = va_arg(vertex_arrs, int);
+			
+		}
 		va_end(vertex_arrs);
-		setProp(new_node->object, init_prop(BONES, up, down, left, right));
+		
 	}
 	else {
 		new_node->object->phis_model = NULL;
@@ -612,3 +628,4 @@ void swapNode(EntityList* self, EntityNode* node_1, EntityNode* node_2) {
 	else if (next_2 == NULL)
 		self->tail = node_1;
 }
+#endif

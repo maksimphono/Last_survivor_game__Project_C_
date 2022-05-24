@@ -1,4 +1,4 @@
-#include "define_graphic_types_new.c"
+#include "graphic_engine.c"
 #pragma warning (disable : 4996)
 
 int step = 1;
@@ -69,7 +69,8 @@ void putcircle(int x, int y, bool pressed) {
 	}
 }
 
-void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* player) { // function, that manage all events from mainloop
+void event_manager(ExMessage* message) { // function, that manage all events from mainloop
+	static int prev_x = 0, prev_y = 0;
 	if (message->message == WM_KEYDOWN)
 		button_press(message->vkcode, player);
 	
@@ -86,13 +87,22 @@ void event_manager(ExMessage* message, MOUSEMSG* mouse, Entity* player) { // fun
 		setTarget(player, "Points", message->x, message->y);
 		player->loop_action = Move_to_Target_Action;
 	}
+	if (message->message == WM_MOUSEMOVE) {
+		setlinecolor(WHITE);
+		circle(message->x, message->y, 50);
+		prev_x = message->x;
+		prev_y = message->y;
+	}
+	else {
+		setlinecolor(WHITE);
+		circle(prev_x, prev_y, 50);
+	}
 }
 
 void mainloop(const char* arg) {
-	MOUSEMSG message_mouse;
+	ExMessage message_mouse;
 	ExMessage message_key;
 
-	Entity* player;
 
 	GameField gf = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
 	GameField gf_1 = *init_gamefield(L"", MAIN_BG_MODEL_PATH);
@@ -157,15 +167,17 @@ void mainloop(const char* arg) {
 		if (tick == MAX_INT) tick = 0;
 		 //						 set working image as main window
 		 //		 render background
+		 // 
 		 // 	//setcliprgn(hrgn);// new
 		
 		//message_key.vkcode = '0';
 		
 		renderBG();
 		//move_transparent_image(0, 0, gf.background_source, WHITE, true);
-		getmessage(&message_key, EM_KEY | EM_MOUSE);
 		
-		event_manager(&message_key, &message_mouse, player); //				manage event
+		getmessage(&message_key, EM_MOUSE | EM_KEY);
+		
+		event_manager(&message_key); //				manage event
 		if (message_key.vkcode == 'B' || message_key.vkcode == 'R') message_key.vkcode = 128;
 
 		all_actions(tick);
