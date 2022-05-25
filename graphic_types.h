@@ -357,14 +357,16 @@ void setupGameField(GameField* self) {
 
 // GameField methods /\
 
-EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
+Entity* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
 	/*
 	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
 	takes 4 'VerexArr' objects, creates 'Prop' instance, using those arrays and sets created entity's 'phi_model'
 	field as this new prop
 	*/
 	EntityNode* new_node;
+	//static Entity* self;
 	int X, Y, radius;
+	int*** p_array = NULL;
 
 	if (killed_main_entity_list.length == 0) {
 		new_node = init_entnode(init_entity(x, y, path_to_image));
@@ -394,7 +396,6 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 			setProp(new_node->object, init_prop(RADIUS, x + new_node->object->figure->width / 2, y + new_node->object->figure->height / 2, radius));
 			//X = va_arg(vertex_arrs, int);
 			//Y = va_arg(vertex_arrs, int);
-			
 		}
 		va_end(vertex_arrs);
 		
@@ -402,7 +403,43 @@ EntityNode* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image
 	else {
 		new_node->object->phis_model = NULL;
 	}
-	return new_node;
+	return new_node->object;
+}
+
+Entity* createByPoints(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), int p_array[4][MAX_VECTOR_NUM][4]) {
+	/*
+	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
+	takes 4 'VerexArr' objects, creates 'Prop' instance, using those arrays and sets created entity's 'phi_model'
+	field as this new prop
+	*/
+	EntityNode* new_node;
+	//static Entity* self;
+	int X, Y, radius;
+
+	if (killed_main_entity_list.length == 0) {
+		new_node = init_entnode(init_entity(x, y, path_to_image));
+		appendEntNode(workingGameField->object_list, new_node);
+	}
+	else {
+		new_node = animate_entnode();
+		reinit_entity(new_node->object, x, y, path_to_image);
+		new_node->lower_edge = new_node->object->lower_edge;
+	}
+	new_node->object->loop_action = action;
+	new_node->object->collision_action = collision_action;
+	new_node->object->name = name;
+
+	if (p_array != NULL){
+		VectorArr up = *init_vectorarr(p_array[0]);
+		VectorArr down = *init_vectorarr(p_array[1]);
+		VectorArr left = *init_vectorarr(p_array[2]);
+		VectorArr right = *init_vectorarr(p_array[3]);
+		setProp(new_node->object, init_prop(BONES, up, down, left, right));
+	}
+	else {
+		new_node->object->phis_model = NULL;
+	}
+	return new_node->object;
 }
 
 EntityNode* popEntNode(EntityList* self, int index);

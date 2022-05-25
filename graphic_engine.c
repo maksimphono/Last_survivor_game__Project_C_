@@ -113,7 +113,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		}
 	}
 	return dst;
-	//memmove(bg, dst, screen_width * SCREEN_HEIGHT * sizeof(DWORD));
+	//membg, dst, screen_width * SCREEN_HEIGHT * sizeof(DWORD));
 }
 
 void setPosition(Entity* self, int x, int y) {
@@ -167,6 +167,14 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 	return obstacles == NULL;
 }
 
+bool setPhisModel(Entity* self, int points[4][MAX_VECTOR_NUM][4]) {
+	setSideCollision(self->phis_model, UP, points[0]);
+	setSideCollision(self->phis_model, DOWN, points[1]);
+	setSideCollision(self->phis_model, LEFT, points[2]);
+	setSideCollision(self->phis_model, RIGHT, points[3]);
+	return true;
+}
+
 bool move(GRAPHIC_TYPE type, ...) {
 	/*
 	Shifts object (second argument) of type 'type' by X axis by value 'third argument', by Y axis by 'fourth' argument
@@ -209,7 +217,7 @@ bool move(GRAPHIC_TYPE type, ...) {
 			puts("");
 		for (int i = 0; obstacles[i] != NULL; i++) {
 			if (entity->collision_action != NULL) entity->collision_action(entity, obstacles[i], &dx, &dy, side);
-			else dy = 0;
+			//else dy = 0;
 		}
 		memset(obstacles, NULL, MAX_OBSTACLE_NUMBER);
 		if (dx) side = (dx < 0) ? LEFT : RIGHT;
@@ -219,7 +227,7 @@ bool move(GRAPHIC_TYPE type, ...) {
 
 		for (int i = 0; obstacles[i] != NULL; i++) {
 			if (entity->collision_action != NULL) entity->collision_action(entity, obstacles[i], &dx, &dy, side);
-			else dx = 0;
+			//else dx = 0;
 		}
 		//free(obstacles);
 		move(FIGURE, entity->figure, dx, dy);
@@ -247,21 +255,25 @@ bool move(GRAPHIC_TYPE type, ...) {
 	return (dx || dy);
 }
 
-void move_directly(Entity* self, int X, int Y, int max_step_length){
-	if (sqrt(pow(fabs(X - self->center_x), 2) + pow(fabs(Y - self->center_y), 2)) <= max_step_length) return;
-	double dX = 0, dY = 0;
-	double y2 = self->center_y;
-	double x2 = self->center_x;
-	double a = (Y / (max(X, x2) - min(X, x2)) + y2 / (min(X, x2) - max(X, x2)));
-	int step_x, step_y;
-	dY = (max_step_length * sin(atan(a)));
-	dX = dY / a;
-	step_y = (dY < 0) ? ceil(dY) : floor(dY);
-	step_x = (dX < 0) ? ceil(dX) : floor(dX);
-	move(ENTITY, self, step_x, step_y);
+void move_by_line(Entity* self, int X, int Y, int max_step_length){
+	 
+	double dY = ((max_step_length - 1) * sin(atan(self->move_axis)));
+	double dX = dY / self->move_axis;
+	int step_y = (int)round(dY);
+	int step_x = (int)round(dX);
+	
+	if (X < self->center_x){	// if point lies by left and up !!! I also have to realize when point lies by left and down !!!
+		step_y = -step_y;
+		step_x = -step_x;
+	}
+
+	self->target[_X] += step_x;
+	self->target[_Y] += step_y;
+
+	move(ENTITY, self, step_x, step_y);;
 }
 
-bool move_by_line(Entity* self, int X, int Y, int max_step_length) {
+bool move_directly(Entity* self, int X, int Y, int max_step_length) {
 	if (self->distance_to_target <= max_step_length) 
 		return true;
 	double dY = ((max_step_length - 1) * sin(atan(self->move_axis)));
@@ -347,6 +359,12 @@ const char* Move_Right_Action(Entity* self, int tick) {
 	return "Move left";
 }
 
+const char* Stop_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
+	if (side == LEFT || side == RIGHT) *dx = 0;
+	if (side == UP || side == DOWN) *dy = 0;
+	return "Stop";
+}
+
 const char* Go_Back_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
 	if (side == LEFT) self->loop_action = Move_Right_Action;
 	else if (side == RIGHT) self->loop_action = Move_Left_Action;
@@ -365,11 +383,18 @@ const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLIS
 const char* Move_to_Target_Action(Entity* self, int tick) {
 	//move_directly(self, self->target[_X], self->target[_Y], 5);
 	if (!self->target[0] || !self->target[1]) return "";
-	if (move_by_line(self, self->target[_X], self->target[_Y], 5)) {
+	if (move_directly(self, self->target[_X], self->target[_Y], 5)) {
 		self->target[_X] = 0;
 		self->target[_Y] = 0;
 		self->move_axis = 0;
 	}
+	return "Move directly";
+}
+
+const char* Move_directly_Action(Entity* self, int tick) {
+	//move_directly(self, self->target[_X], self->target[_Y], 5);
+	if (!self->target[0] || !self->target[1]) return "";
+	move_by_line(self, self->target[_X], self->target[_Y], 5);
 	return "Move directly";
 }
 

@@ -4,6 +4,7 @@
 #define MAX_IMAGE_NUM 59
 #define MAX_ENTITY_NUM 19
 #define MAX_VERTEX_NUM 19
+#define MAX_VECTOR_NUM 19
 #define MAX_FIGURE_NUM 19
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
@@ -13,3 +14,5 @@
 #define STANDART_VISION_RADIUS 80
 
 #define MAX_VERTEX_ARR_LEN 19
+
+typedef int int_array[MAX_VECTOR_NUM][4];

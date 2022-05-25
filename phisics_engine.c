@@ -70,24 +70,26 @@ void del_vector(Vector* self) {
 
 void addVector(VectorArr* self, int x1, int y1, int x2, int y2);
 
-VectorArr* init_vectorarr(int n, ...) {
+VectorArr* init_vectorarr(int n_array[][4], ...) {
 	static VectorArr* self;
 	self = (VectorArr*)malloc(sizeof(VectorArr));
 	va_list arguments;
-	int x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-	int* x_array = (int*)calloc(MAX_VERTEX_NUM, sizeof(int));
-	int* y_array = (int*)calloc(MAX_VERTEX_NUM, sizeof(int));
+	int x1 = 0, x2 = 0, y1 = 0, y2 = 0, len, n;
 	self->vectors = (Vector*)malloc(sizeof(Vector));
 	self->length = 0;
-	va_start(arguments, n);
-	if (n == 0) {
-		x_array = va_arg(arguments, int*);
-		y_array = va_arg(arguments, int*);
-		for (int i = 0; x_array[i] != 0 && y_array[i] != 0; i += 2) {
-			addVector(self, x_array[i], y_array[i], x_array[i + 1], y_array[i + 1]);
+	va_start(arguments, n_array);
+	if ((long long)n_array != 0) {
+		n = va_arg(arguments, int);
+		for (int i = 0; i != n && n_array[i][0] != 0; i += 1) {
+			x1 = n_array[i][0];
+			x2 = n_array[i][2];
+			y1 = n_array[i][1];
+			y2 = n_array[i][3];
+			addVector(self, x1, y1, x2, y2);
 		}
 	}
-	else if (n) {
+	else {
+		n = va_arg(arguments, int);
 		for (int i = 0; i < n; i++) {
 			x1 = va_arg(arguments, int);
 			y1 = va_arg(arguments, int);
@@ -179,6 +181,27 @@ Prop* init_prop(COLLISION_TYPE type, ...) {
 	return self;
 }
 
+void setSideCollision(Prop* self, COLLISION_SIDE side, int points[MAX_VECTOR_NUM][4]) {
+	VectorArr* varray = NULL;
+	switch (side) {
+	case UP:
+		varray = &self->upper;
+		break;
+	case DOWN:
+		varray = &self->lower;
+		break;
+	case LEFT:
+		varray = &self->left;
+		break;
+	case RIGHT:
+		varray = &self->right;
+		break;
+	default:
+		return;
+	}
+	*varray = *init_vectorarr(points);
+}
+
 void del_prop(Prop* self) {
 	if (self == NULL) return;
 	switch (self->collision_type) {
@@ -258,7 +281,23 @@ bool isBetween(int a_X, int a_Y, int b_X, int b_Y, double c_X, double c_Y) {
 
 double distance_between_verteces(Vertex* v1, Vertex* v2) {
 	// find distance between two verteces
-	return sqrt(pow((v2->X - v1->X), 2) + pow((v2->Y - v1->Y), 2));
+	double d = sqrt(pow((v2->X - v1->X), 2) + pow((v2->Y - v1->Y), 2));
+	return d;
+}
+
+double distance_to_vector(Vertex* vertex, Vector* vector) {
+	double a, b, d;
+	double y1 = vector->p1->Y;
+	double x1 = vector->p1->X;
+	double x2 = vector->p2->X;
+	double y2 = vector->p2->Y;
+	if (fabs(x2 - x1) <= EPS) return fabs(vertex->X - vector->p1->X);
+
+	a = (y1 / (x1 - x2) + y2 / (x2 - x1));
+	b = -(y1 / (x1 - x2)) * x2 - (y2 / (x2 - x1)) * x1;
+
+	d = fabs(a * vertex->X - vertex->Y + b) / sqrt(1 + pow(a, 2));
+	return d;
 }
 
 double distance_between_vectors(Vector* v1, Vector* v2) {
@@ -311,7 +350,7 @@ double distance_between_vectors(Vector* v1, Vector* v2) {
 		else
 			d /= fabs(cos(0.5 * PI - atan(a1)));
 	}
-	return d;
+	return fabs(d);
 }
 
 double prop_centers_distance(Prop* object1, Prop* object2) {
@@ -353,6 +392,20 @@ bool new_line_cross(Vector* v1, Vector* v2, int min_distance) {
 	return countClockwise(A, C, D) != countClockwise(B, C, D) && countClockwise(A, B, C) != countClockwise(A, B, D);
 }
 
+bool vector_circle_cross(Vector* v, Vertex* center, int radius) {
+	double d = distance_to_vector(center, v), a, b, c;
+	double sqr_b, ac4, x1 = v->p1->X, x2 = v->p2->X, y1 = v->p1->Y, y2 = v->p2->Y, h = center->X, k = center->Y, t1, t2;
+	if (fabs(y1 - y2) <= EPS) return min(fabs(v->p1->Y - center->Y), fabs(center->Y - v->p2->Y)) <= radius;
+	else if (fabs(x1 - x2) <= EPS) return min(fabs(v->p1->X - center->X), fabs(center->X - v->p2->X)) <= radius;
+	a = (pow(x2 - x1, 2) + pow(y2 - y1, 2));
+	b = 2*(x2-x1)*(x1-h)+2*(y2-y1)*(y1-k);
+	sqr_b = pow(b, 2);
+	c = pow((x1-h), 2) + pow((y1-k), 2) - pow(radius, 2);
+	ac4 = 4 * a * c;
+	if (sqr_b - ac4 <= 0) return false;
+	return true;
+}
+
 const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE side) {
 	/*
 	Check collision between 2 objects by only one side
@@ -360,6 +413,8 @@ const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE
 	Vector* pivot, * v1, * v2, *v3, *v4;
 	VectorArr* self_varray = NULL;
 	VectorArr* prop_varray = NULL;
+	int distance;
+
 
 	if (self == NULL || prop == NULL) return false;
 	
@@ -390,30 +445,51 @@ const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE
 			}
 		}
 	}
+	else if (prop->collision_type == BONES && self->collision_type == RADIUS) {
+		switch (side) {
+		case UP:
+			prop_varray = &prop->lower;
+			break;
+		case DOWN:
+			prop_varray = &prop->upper;
+			break;
+		case LEFT:
+			prop_varray = &prop->right;
+			break;
+		case RIGHT:
+			prop_varray = &prop->left;
+			break;
+		default:
+			return false;
+		}
+		for (Vector* v1 = prop_varray->vectors; v1 != prop_varray->vectors + prop_varray->length; v1++) {
+			distance = min(min(distance_between_verteces(self->center, v1->p1), distance_between_verteces(self->center, v1->p2)), distance_to_vector(self->center, v1));
+			if (distance < self->collide_radius) return true;
+		}
+	}
+	else if (self->collision_type == BONES && prop->collision_type == RADIUS) {
+		switch (side) {
+		case DOWN:
+			self_varray = &self->lower;
+			break;
+		case UP:
+			self_varray = &self->upper;
+			break;
+		case RIGHT:
+			self_varray = &self->right;
+			break;
+		case LEFT:
+			self_varray = &self->left;
+			break;
+		default:
+			return false;
+		}
+		for (Vector* v1 = self_varray->vectors; v1 != self_varray->vectors + self_varray->length; v1++) {
+			//distance = min(min(distance_between_verteces(prop->center, v1->p1), distance_between_verteces(prop->center, v1->p2)), distance_to_vector(prop->center, v1));
+			if (vector_circle_cross(v1, prop->center, prop->collide_radius)) return true;
+		}
+	}
 		
 	return false;
 }
-/*
-bool collision(PHISICS_TYPE type1, PHISICS_TYPE type2, ...) {
-	va_list arguments;
-	union {
-		Vertex* vertex1;
-		Vertex* vertex2;
-		Vector* vector1;
-		Vector* vector2;
-		Prop* prop1;
-		Prop* prop2;
-	};
-	va_start(arguments, type2);
-	switch (type1) {
-	case VERTEX:
-		vertex1 = 
-		switch (type2) {
-			case VERTEX:
-				vertex;
-		}
-	}
-	va_end(arguments);
-}
-*/
 #endif
