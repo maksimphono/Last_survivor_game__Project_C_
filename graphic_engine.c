@@ -175,6 +175,16 @@ bool setPhisModel(Entity* self, int points[4][MAX_VECTOR_NUM][4]) {
 	return true;
 }
 
+void setFigure(Entity* self, LPCTSTR picture) {
+	if (self->figure != NULL) kill_figure(self->figure);
+	self->figure = init_figure(self->X, self->Y, picture);
+}
+
+bool connectEntity(Entity* self, Entity* object) {
+	self->connected = object;
+	return true;
+}
+
 bool move(GRAPHIC_TYPE type, ...) {
 	/*
 	Shifts object (second argument) of type 'type' by X axis by value 'third argument', by Y axis by 'fourth' argument
@@ -212,6 +222,12 @@ bool move(GRAPHIC_TYPE type, ...) {
 		obstacles = (Entity**)calloc(MAX_OBSTACLE_NUMBER, sizeof(Entity*));
 		
 		if (dy) side = (dy < 0) ? UP : DOWN;
+		switch (side) {
+		case DOWN:
+			if (entity->Y + entity->figure->height + dy >= SCREEN_HEIGHT) return false;
+		case UP:
+			if (entity->Y + dy <= 0) return false;
+		}
 		check_collision_with_all(obstacles, entity, fabs(dy), side);
 		if (entity->name == "Box" && obstacles[0] != NULL && obstacles[0]->name == "Box")
 			puts("");
@@ -221,6 +237,14 @@ bool move(GRAPHIC_TYPE type, ...) {
 		}
 		memset(obstacles, NULL, MAX_OBSTACLE_NUMBER);
 		if (dx) side = (dx < 0) ? LEFT : RIGHT;
+		
+		switch (side) {
+		case RIGHT:
+			if (entity->X + entity->figure->width + dx >= SCREEN_WIDTH) return false;
+		case LEFT:
+			if (entity->X + dx <= 0) return false;
+		}
+		
 		check_collision_with_all(obstacles, entity, fabs(dx), side);
 		if (entity->name == "Box" && obstacles[0] != NULL && obstacles[0]->name == "Box")
 			puts("");
@@ -238,8 +262,6 @@ bool move(GRAPHIC_TYPE type, ...) {
 		entity->center_y += dy;
 		entity->X += dx;
 		entity->Y += dy;
-
-		//entity->lower_edge += dy;
 		break;
 	case ENTLIST:
 		entList = va_arg(arguments, EntityList*);
@@ -253,6 +275,10 @@ bool move(GRAPHIC_TYPE type, ...) {
 	}
 	va_end(arguments);
 	return (dx || dy);
+}
+
+bool move_with_collision(Entity* self, int dx, int dy) {
+	return move(ENTITY, self, dx, dy);
 }
 
 void move_by_line(Entity* self, int X, int Y, int max_step_length){
@@ -288,6 +314,11 @@ bool move_directly(Entity* self, int X, int Y, int max_step_length) {
 	move(ENTITY, self, step_x, step_y);
 	self->distance_to_target -= sqrt(pow(step_y, 2) + pow(step_x, 2));
 	return false;
+}
+
+bool follow_target(Entity* self, Entity* target, int step) {
+	setTarget(self, "Object", target);
+	return move_directly(self, self->target[_X], self->target[_Y], step);
 }
 
 void show_bones(EntityNode* self, COLLISION_SIDE side) {
@@ -346,63 +377,6 @@ void show_hide_all_bones(COLLISION_SIDE side) {
 		visiable = false;
 	}
 }
-
-// ACTIONS:
-
-const char* Move_Left_Action(Entity* self, int tick) {
-	move(ENTITY, self, -1, 0);
-	return "Move left";
-}
-
-const char* Move_Right_Action(Entity* self, int tick) {
-	move(ENTITY, self, 1, 0);
-	return "Move left";
-}
-
-const char* Stop_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
-	if (side == LEFT || side == RIGHT) *dx = 0;
-	if (side == UP || side == DOWN) *dy = 0;
-	return "Stop";
-}
-
-const char* Go_Back_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
-	if (side == LEFT) self->loop_action = Move_Right_Action;
-	else if (side == RIGHT) self->loop_action = Move_Left_Action;
-	*dx = 0;
-	return "Collision!";
-}
-
-const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
-	//switch (side) {
-	//case UP:
-	move(ENTITY, obstacle, 1 * (*dx), 1 * (*dy));
-	//}
-	return "Push!";
-}
-
-const char* Move_to_Target_Action(Entity* self, int tick) {
-	//move_directly(self, self->target[_X], self->target[_Y], 5);
-	if (!self->target[0] || !self->target[1]) return "";
-	if (move_directly(self, self->target[_X], self->target[_Y], 5)) {
-		self->target[_X] = 0;
-		self->target[_Y] = 0;
-		self->move_axis = 0;
-	}
-	return "Move directly";
-}
-
-const char* Move_directly_Action(Entity* self, int tick) {
-	//move_directly(self, self->target[_X], self->target[_Y], 5);
-	if (!self->target[0] || !self->target[1]) return "";
-	move_by_line(self, self->target[_X], self->target[_Y], 5);
-	return "Move directly";
-}
-
-const char* Kill_Action(Entity* self, Entity* obst, int* dx, int* dy, COLLISION_SIDE side) {
-	kill_entity(obst);
-	return "Kill";
-}
-
 
 void all_actions(int tick) {
 	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {

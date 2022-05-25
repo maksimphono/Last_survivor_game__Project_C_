@@ -60,6 +60,9 @@ typedef struct Entity {
 	Figure* figure;
 	FigureArray bones;
 	Prop* phis_model;
+	Entity* connected;
+	int connected_num;
+	void* child;
 	int target[2];
 	int vision_radius;
 	int lower_edge;
@@ -112,7 +115,6 @@ Entity* player;
 GameField* getWorkingField() {
 	return workingGameField;
 }
-
 
 EntityList* init_entlist();
 
@@ -303,9 +305,10 @@ EntityNode* init_entnode(Entity* object) {
 	self = (EntityNode*)malloc(sizeof(EntityNode));
 	self->next = NULL;
 	self->prev = NULL;
+	self->object = object;
+	if (object == NULL) return self;
 	self->type = object->type;
 	self->lower_edge = object->lower_edge;
-	self->object = object;
 	return self;
 }
 
@@ -546,8 +549,9 @@ EntityNode* popEntNode(EntityList* self, int index) {
 	*/
 	EntityNode* currentNode = NULL;
 	EntityNode* previousNode = NULL;
-	if (self->head == NULL) return NULL;
+	if (self->head == NULL) return NULL; // changed, was : self->head == NULL
 	if (index >= 0 and index >= self->length) return NULL;
+	
 	if (index == -1 || index == self->length - 1) {
 		currentNode = self->tail;
 		self->tail = self->tail->prev;
@@ -580,9 +584,9 @@ void removeEntNode(EntityList* self, EntityNode* node) {
 	*/
 	EntityNode* currentNode = NULL;
 	EntityNode* previousNode = NULL;
-	if (self->head == NULL) return;
+	if (self->head == NULL) return; // changed was : self->head == NULL
 	if (self->length == 1) {
-		self->head = self->tail = NULL;
+		self->head = self->tail = NULL; // changed, was self->head = self->tail = NULL
 	}
 	else if (node->next == NULL) {
 		currentNode = self->tail;
@@ -611,6 +615,11 @@ void kill_entnode(EntityNode* self) {
 	*/
 	//del_prop(self->object->phis_model);
 	self->object->phis_model = NULL;
+	self->object->connected = NULL;
+	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
+		if (node->object->connected == self->object) node->object->connected = NULL;
+		if (node->object->connected == self->object) node->object->connected = NULL;
+	}
 	removeEntNode(workingGameField->object_list, self);
 	appendEntNode(&killed_main_entity_list, self);
 }

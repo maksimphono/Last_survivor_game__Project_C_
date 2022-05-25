@@ -5,7 +5,6 @@ int step = 1;
 const int sleeptime = 1;
 unsigned tick = 0;
 
-
 void button_press(char btn, Entity* player) {
 	/*
 	Manages control buttons
