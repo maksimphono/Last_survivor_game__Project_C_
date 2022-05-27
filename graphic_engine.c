@@ -178,6 +178,7 @@ bool setPhisModel(Entity* self, int points[4][MAX_VECTOR_NUM][4]) {
 void setFigure(Entity* self, LPCTSTR picture) {
 	if (self->figure != NULL) kill_figure(self->figure);
 	self->figure = init_figure(self->X, self->Y, picture);
+	self->lower_edge = self->Y + self->figure->height;
 }
 
 bool connectEntity(Entity* self, Entity* object) {
@@ -221,28 +222,28 @@ bool move(GRAPHIC_TYPE type, ...) {
 		
 		obstacles = (Entity**)calloc(MAX_OBSTACLE_NUMBER, sizeof(Entity*));
 		
-		if (dy) side = (dy < 0) ? UP : DOWN;
-		switch (side) {
-		case DOWN:
-			if (entity->Y + entity->figure->height + dy >= SCREEN_HEIGHT) return false;
-		case UP:
-			if (entity->Y + dy <= 0) return false;
+		if (dy) {
+			side = (dy < 0) ? UP : DOWN;
+
+			if (entity->Y + entity->figure->height + dy >= SCREEN_HEIGHT || entity->Y + dy <= 0) { // <-- complete
+				entity->collision_action(entity, NULL, &dx, &dy, side);
+			}
 		}
+
 		check_collision_with_all(obstacles, entity, fabs(dy), side);
-		if (entity->name == "Box" && obstacles[0] != NULL && obstacles[0]->name == "Box")
-			puts("");
+
 		for (int i = 0; obstacles[i] != NULL; i++) {
 			if (entity->collision_action != NULL) entity->collision_action(entity, obstacles[i], &dx, &dy, side);
 			//else dy = 0;
 		}
 		memset(obstacles, NULL, MAX_OBSTACLE_NUMBER);
-		if (dx) side = (dx < 0) ? LEFT : RIGHT;
+		if (dx) {
+			side = (dx < 0) ? LEFT : RIGHT;
 		
-		switch (side) {
-		case RIGHT:
-			if (entity->X + entity->figure->width + dx >= SCREEN_WIDTH) return false;
-		case LEFT:
-			if (entity->X + dx <= 0) return false;
+			if (entity->X + entity->figure->width + dx >= SCREEN_WIDTH || entity->X + dx <= 0) {
+				entity->collision_action(entity, NULL, &dx, &dy, side);
+			}
+
 		}
 		
 		check_collision_with_all(obstacles, entity, fabs(dx), side);

@@ -321,6 +321,9 @@ EntityList* init_entlist() {
 	return self;
 }
 
+void removeEntNode(EntityList* self, EntityNode* node);
+EntityNode* appendEntNode(EntityList* self, Entity* object);
+
 // GameField methods:
 
 GameField* init_gamefield(LPCTSTR path_to_storage_file, LPCTSTR background_image_path) {
@@ -356,6 +359,16 @@ void setupGameField(GameField* self) {
 	self->bg_code_src = GetImageBuffer(&images[self->background->img_index]);
 
 	//main_entity_list = *self->object_list;
+}
+
+bool loadGameField(GameField* gf) {
+	if (gf == NULL) return false;
+	EntityNode* node = workingGameField->object_list->head;
+	for (; node->object != player; node = node->next);
+	appendEntNode(gf->object_list, node);
+	removeEntNode(workingGameField->object_list, node);
+	setupGameField(gf);
+	return true;
 }
 
 // GameField methods /\
