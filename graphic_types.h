@@ -39,9 +39,13 @@ typedef struct Figure {
 	*/
 	int X;
 	int Y;
-	unsigned width;
-	unsigned height;
+	int width;
+	int height;
 	unsigned img_index;
+	
+	int current_cadr;
+	int cadr_num;
+	int speed;
 
 } Figure;
 
@@ -145,7 +149,7 @@ Figure* popFigure(FigureArray* self) {
 
 FigureArray killed_figure = *init_figarray(50);
 
-Figure* init_figure(int x, int y, LPCTSTR path_to_image) {
+Figure* init_figure(int x, int y, int height, LPCTSTR path_to_image) {
 	static Figure* self;
 	if (killed_figure.length == 0) {
 		//self = init_figure(x, y, path_to_image);
@@ -155,14 +159,28 @@ Figure* init_figure(int x, int y, LPCTSTR path_to_image) {
 		self = popFigure(&killed_figure);
 	}	
 	IMAGE* img = setupImage(&self->img_index); // access to image in 'images' array
+	
 	if (img != NULL) {
 		loadimage(img, path_to_image, 0, 0, true);
 		self->width = img->getwidth();
-		self->height = img->getheight();
+		self->height = height;
+		self->cadr_num = img->getheight() / height;
+		self->current_cadr = 0;
 		self->X = x;
 		self->Y = y;
+		self->speed = DEFAULT_ANIMATION_SPEED;
 	}
 	return self;
+}
+
+int next_cadr(Figure* figure) {
+	if (figure->current_cadr + 1 == figure->cadr_num) return 0;
+	else return figure->current_cadr + 1;
+}
+
+int prev_cadr(Figure* figure) {
+	if (!figure->current_cadr) return figure->cadr_num - 1;
+	else return figure->current_cadr - 1;
 }
 
 void kill_figure(Figure* self) {
@@ -173,13 +191,13 @@ void kill_figure(Figure* self) {
 	killed_figure._[killed_figure.length++] = self;
 }
 
-int appendFigure(FigureArray* self, int x, int y, LPCTSTR path_to_image) {
+int appendFigure(FigureArray* self, int x, int y, int height, LPCTSTR path_to_image) {
 	static Figure* new_fig;
 	if (self->length >= self->max_length) {
 		self->_ = (Figure**)realloc(self->_, sizeof(self->_) + sizeof(Figure*) * 10);
 		self->max_length++;
 	}
-	new_fig = init_figure(x, y, path_to_image);
+	new_fig = init_figure(x, y, height, path_to_image);
 	self->_[self->length++] = new_fig;
 	return self->length;
 }
@@ -192,13 +210,13 @@ int clearFigureArr(FigureArray* self) {
 	return 0;
 }
 
-Entity* init_entity(int x, int y, LPCTSTR path_to_image) {
+Entity* init_entity(int x, int y, int height, LPCTSTR path_to_image) {
 	/*
 	Constructor for 'Entity' structure
 	*/
 	static Entity* self;
 	self = (Entity*)malloc(sizeof(Entity));
-	self->figure = init_figure(x, y, path_to_image);
+	self->figure = init_figure(x, y, height, path_to_image);
 	self->bones = *init_figarray(8);
 	//self->phis_model = *init_prop();
 	self->type = OBJECT;
@@ -225,10 +243,10 @@ void kill_entity(Entity* self) {
 	}
 }
 
-Entity* reinit_entity(Entity* self, int x, int y, LPCTSTR path_to_image) {
+Entity* reinit_entity(Entity* self, int x, int y, int height, LPCTSTR path_to_image) {
 	if (self == NULL) return NULL;
 	self->name = "object";
-	self->figure = init_figure(x, y, path_to_image);
+	self->figure = init_figure(x, y, height, path_to_image);
 	//self->phis_model = *init_prop();
 	self->type = OBJECT;
 	self->X = x;
@@ -330,8 +348,9 @@ GameField* init_gamefield(LPCTSTR path_to_storage_file, LPCTSTR background_image
 	static GameField* self;
 	self = (GameField*)malloc(sizeof(GameField));
 	self->object_list = init_entlist();
-	self->background = init_figure(0, 0, background_image_path);
-	self->background_source = init_figure(0, 0, background_image_path);
+	
+	self->background = init_figure(0, 0, SCREEN_HEIGHT, background_image_path);
+	self->background_source = init_figure(0, 0, SCREEN_HEIGHT, background_image_path);
 	self->storage_file_path = path_to_storage_file;
 	self->bg_code = NULL;
 	self->bg_code_src = NULL;
@@ -373,7 +392,7 @@ bool loadGameField(GameField* gf) {
 
 // GameField methods /\
 
-Entity* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
+Entity* registerEntity(int x, int y, int height, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), const char* with_prop, ...) {
 	/*
 	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
 	takes 4 'VerexArr' objects, creates 'Prop' instance, using those arrays and sets created entity's 'phi_model'
@@ -385,12 +404,12 @@ Entity* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, co
 	int*** p_array = NULL;
 
 	if (killed_main_entity_list.length == 0) {
-		new_node = init_entnode(init_entity(x, y, path_to_image));
+		new_node = init_entnode(init_entity(x, y, height, path_to_image));
 		appendEntNode(workingGameField->object_list, new_node);
 	}
 	else {
 		new_node = animate_entnode();
-		reinit_entity(new_node->object, x, y, path_to_image);
+		reinit_entity(new_node->object, x, y, height, path_to_image);
 		new_node->lower_edge = new_node->object->lower_edge;
 	}
 	new_node->object->loop_action = action;
@@ -422,7 +441,7 @@ Entity* registerEntity(int x, int y, const char* name, LPCTSTR path_to_image, co
 	return new_node->object;
 }
 
-Entity* createByPoints(int x, int y, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), int p_array[4][MAX_VECTOR_NUM][4]) {
+Entity* createByPoints(int x, int y, int height, const char* name, LPCTSTR path_to_image, const char* (*action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE), int p_array[4][MAX_VECTOR_NUM][4]) {
 	/*
 	Creates new entity, sets it on given cordinates, loads image by 'path_to_image'. If 'with_prop' is "Prop:", then
 	takes 4 'VerexArr' objects, creates 'Prop' instance, using those arrays and sets created entity's 'phi_model'
@@ -433,12 +452,12 @@ Entity* createByPoints(int x, int y, const char* name, LPCTSTR path_to_image, co
 	int X, Y, radius;
 
 	if (killed_main_entity_list.length == 0) {
-		new_node = init_entnode(init_entity(x, y, path_to_image));
+		new_node = init_entnode(init_entity(x, y, height, path_to_image));
 		appendEntNode(workingGameField->object_list, new_node);
 	}
 	else {
 		new_node = animate_entnode();
-		reinit_entity(new_node->object, x, y, path_to_image);
+		reinit_entity(new_node->object, x, y, height, path_to_image);
 		new_node->lower_edge = new_node->object->lower_edge;
 	}
 	new_node->object->loop_action = action;

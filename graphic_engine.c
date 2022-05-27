@@ -44,7 +44,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 	DWORD* src = GetImageBuffer(&images[fig->img_index]);
 	DWORD* dst = GetImageBuffer(GetWorkingImage());
 	int dstx = fig->X, dsty = fig->Y;
-	int image_width = images[fig->img_index].getwidth(), image_height = images[fig->img_index].getheight(), screen_width;
+	int image_width = images[fig->img_index].getwidth(), image_height = fig->height, screen_width;
 	fig->X += dx;
 	fig->Y += dy;
 
@@ -60,7 +60,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 	renderAll(render);
 	switch (dx > 0) {
 	case 1: // dx > 0
-		for (int j = 0; j < image_height; j++) {
+		for (int j = 0; j < image_height * 1; j++) {
 			for (int p = 0; p < dx; p++) {
 				ull real_pixel_pos = (j + dsty) * screen_width + dstx + p;
 				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
@@ -68,7 +68,7 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 		}
 		break;
 	case 0: // dx < 0
-		for (int j = 0; j < image_height; j++) {
+		for (int j = 0; j < image_height * 1; j++) {
 			for (int p = 0; p < -dx; p++) {
 				ull real_pixel_pos = (j + dsty) * screen_width + dstx + image_width - p;
 				dst[real_pixel_pos] = workingGameField->bg_code[real_pixel_pos];
@@ -97,9 +97,9 @@ DWORD* move_transparent_image(int dx, int dy, Figure* fig, COLORREF color, bool 
 	}
 	
 	for (int i = 0; i < image_width; i++) {
-		for (int j = 0; j < image_height; j++) {
+		for (int j = 0; j < image_height * 1; j++) {
 			ull real_pixel_pos = (j + dsty + dy) * screen_width + i + dstx + dx;
-			ull image_pixel_pos = j * image_width + i;
+			ull image_pixel_pos = (j + image_height * fig->current_cadr) * image_width + i;// * fig->current_cadr;
 			if (src[image_pixel_pos] != BITWHITE) { // if the pivot pixel has not transparent color, i paint it with image's pixel
 				if (dsty < 0)
 					dsty = 0;
@@ -175,9 +175,9 @@ bool setPhisModel(Entity* self, int points[4][MAX_VECTOR_NUM][4]) {
 	return true;
 }
 
-void setFigure(Entity* self, LPCTSTR picture) {
+void setFigure(Entity* self, int height, LPCTSTR picture) {
 	if (self->figure != NULL) kill_figure(self->figure);
-	self->figure = init_figure(self->X, self->Y, picture);
+	self->figure = init_figure(self->X, self->Y, height, picture);
 	self->lower_edge = self->Y + self->figure->height;
 }
 
@@ -216,7 +216,7 @@ bool move(GRAPHIC_TYPE type, ...) {
 		break;
 	case ENTITY: // if object is 'Entity', i will check collision with all objects
 		entity = va_arg(arguments, Entity*);
-		if ((unsigned long long)entity == 0xFFFFFFFFFFFFFFCF) return false;
+		if ((unsigned long long)entity == 0xFFFFFFFFFFFFFFCF || entity == NULL) return false;
 		dx = va_arg(arguments, int);
 		dy = va_arg(arguments, int);
 		
@@ -322,63 +322,6 @@ bool follow_target(Entity* self, Entity* target, int step) {
 	return move_directly(self, self->target[_X], self->target[_Y], step);
 }
 
-void show_bones(EntityNode* self, COLLISION_SIDE side) {
-	/*
-	Method, used to show on canvas all entity's bones (Verexes of prop)
-	*/
-	VectorArr* varrays[4] = {};
-	Prop* model = self->object->phis_model;
-	if (model != NULL) {
-		switch (side) {
-		case UP:
-			varrays[0] = &model->upper;
-			break;
-		case DOWN:
-			varrays[0] = &model->lower;
-			break;
-		case LEFT:
-			varrays[0] = &model->left;
-			break;
-		case RIGHT:
-			varrays[0] = &model->right;
-			break;
-		default:
-			varrays[0] = &model->upper;
-			varrays[1] = &model->lower;
-			varrays[2] = &model->left;
-			varrays[3] = &model->right;
-		}
-		for (VectorArr** varray = varrays; varray != varrays + 4 && *varray != NULL; varray++)
-			for (int i = 0; i < (*varray)->length; i++) {
-				appendFigure(&self->object->bones, (*varray)->vectors[i].p1->X, (*varray)->vectors[i].p1->Y, BONE_MODEL_PATH);
-				appendFigure(&self->object->bones, (*varray)->vectors[i].p2->X, (*varray)->vectors[i].p2->Y, BONE_MODEL_PATH);
-			}
-	}
-}
-
-void show_hide_all_bones(COLLISION_SIDE side) {
-	/*
-	This function shows / hides all the bones of all objects.
-	Shows bones: creating new 'Entity' and add it to array 'effectarray'. That array's items will be rendered after actual entities
-	Hides bones: deleting entities from array 'effectarray'.
-	*/
-	static bool visiable = false;
-	if (!visiable) { // add all bones to 'effectarray'
-		for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
-			show_bones(node, NOCOLLIDE);
-		}
-		//for (Entity** ent = entarray; ent != entarray + entnum; ent++)
-			//show_bones(*ent, side);
-		visiable = true;
-	}
-	else { // delete all bones from 'effectarray'
-		for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
-			if (node->object->phis_model) clearFigureArr(&node->object->bones);
-		}
-		visiable = false;
-	}
-}
-
 void all_actions(int tick) {
 	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 		if (node->object->loop_action != NULL) node->object->loop_action(node->object, tick);
@@ -413,6 +356,12 @@ void renderBones(Entity* self) {
 
 void renderBG() {
 	move_transparent_image(0, 0, getWorkingField()->background_source, BLACK, false);
+}
+
+void nextCadrAll(int tick) {
+	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
+		if (tick % node->object->figure->speed == 0) node->object->figure->current_cadr = next_cadr(node->object->figure);
+	}
 }
 
 void renderAll(bool flag) {
