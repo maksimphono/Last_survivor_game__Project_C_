@@ -278,6 +278,10 @@ bool move(GRAPHIC_TYPE type, ...) {
 	return (dx || dy);
 }
 
+double entity_distance(Entity* self, Entity* object) {
+	return sqrt(pow(self->center_x - object->center_x, 2) + pow(self->center_y - object->center_y, 2));
+}
+
 bool move_with_collision(Entity* self, int dx, int dy) {
 	return move(ENTITY, self, dx, dy);
 }
@@ -382,7 +386,6 @@ void renderAll(bool flag) {
 				renderBones(node->object);
 			}
 		}
-		
 	}
 }
 #endif
