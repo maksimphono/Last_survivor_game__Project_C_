@@ -1,8 +1,7 @@
-#include "Project_header.h"
+#include "objects.c"
 
 int step = 1;
 const int sleeptime = 1;
-unsigned tick = 0;
 
 void button_press(char btn, Entity* player) {
 	/*
@@ -35,7 +34,7 @@ void button_press(char btn, Entity* player) {
 void event_manager(ExMessage* message) { // function, that manage all events from mainloop
 	static int prev_x = 0, prev_y = 0;
 
-	LPCTSTR t = L"Hello";
+	LPCTSTR t = L"";
 
 	setbkmode(TRANSPARENT);
 
@@ -52,7 +51,7 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 			{{x + 50, y, x + 50, y + 50}}
 		};
 
-		createByPoints(x, y, "Box", box3_png, NULL, Stop_Action, points);
+		createByPoints(x, y, 50, "Box", box3_png, NULL, Stop_Action, points);
 		message->message = NULL;
 	}
 	else if (message->message == WM_RBUTTONDOWN) {

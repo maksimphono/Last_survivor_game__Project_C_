@@ -1,6 +1,4 @@
-//#include "Project_header.h"
 #include "event_manager.c"
-#include "objects.c"
 
 void mainloop(const char* arg) {
 	ExMessage message;
@@ -18,12 +16,13 @@ void mainloop(const char* arg) {
 		
 		renderBG();
 		
-		getmessage(&message, EM_MOUSE | EM_KEY);
+		peekmessage(&message, EM_MOUSE | EM_KEY);
 
 		event_manager(&message); //				manage event
 
 		all_actions(tick);
 		renderAll(true);
+		nextCadrAll(tick);
 		FlushBatchDraw();
 	}
 	EndBatchDraw();
