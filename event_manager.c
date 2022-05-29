@@ -1,6 +1,5 @@
 #include "objects.c"
 
-int step = 1;
 const int sleeptime = 1;
 
 void button_press(char btn, Entity* player) {
@@ -8,6 +7,7 @@ void button_press(char btn, Entity* player) {
 	Manages control buttons
 	*/
 	static int x = 500, y = 400;
+	int step = (*(Player*)(player->child)).hvstep;
 
 	switch (btn) {
 	case 'W':
@@ -27,6 +27,9 @@ void button_press(char btn, Entity* player) {
 		break;
 	case 'B':
 		visiable_bones = !visiable_bones; // when visiable_bones set as true, bones of objects will be rendered
+		break;
+	case 'K':
+		saveGameField(getWorkingField(), project_name);
 		break;
 	}
 }

@@ -1,7 +1,7 @@
 //#include "objects.h"
 #include "actions.h"
 
-void createObjects(GameField* gf) {
+void createObjects00(GameField* gf) {
 
 	setupGameField(gf);
 
@@ -25,16 +25,46 @@ void createObjects(GameField* gf) {
 		{{x, y, x, y + 50}},
 		{{x + 50, y, x + 50, y + 50}}
 	};
-
 	
-	createByPoints(x, y, 50, "Box", box3_png, NULL, Stop_Action, _points);
+	x = 250, y = 200;
+	registerEntity(0, 480, 120, "Sea", sea_png, NULL, NULL, "Prop:", "Rect", 0, 480, 600, 120);
 
-	Plant* pl = init_plant(240, 300, 900);
+	registerEntity(x, y, 78, "Boat", brokenboat_png, NULL, NULL, "Prop:", "Rect", x, y + 40, 100, 30);
+	
+	registerEntity(50, 70, 19, "Seashell", seashell1_png, NULL, NULL, "");
+	registerEntity(500, 440, 19, "Seashell", seashell1_png, NULL, NULL, "");
 
-	registerEntity(500, 500, 50, "clock", clock_png, NULL, NULL, "");
-	Entity* box = createByPoints(x, y, 50, "clock", clock_png, NULL, Stop_Action, _points);
+	registerEntity(150, 200, 70, "Plant", plant_png, NULL, NULL, "");
+	registerEntity(210, 230, 70, "Plant", plant_png, NULL, NULL, "");
+	registerEntity(350, 370, 70, "Plant", plant_png, NULL, NULL, "");
 
-	init_player(300, 300);
+	init_player(200, 100);
 
 	//player = createByPoints(x, y, 50, "main", player_png, NULL, Push_Action, _points);
+}
+
+void createObjects01(GameField* gf) {
+	int cords[3][7][2] = {
+		{{200, 260}, {250, 270}, {300, 200}, {130, 260}, {100, 190}, {270, 390} },
+		{{400, 260}, { 450, 370 }, { 370, 470 }, { 130, 500 }, { 300, 290 }, { 520, 400 }},
+		{{200, 260}, { 250, 270 }, { 300, 200 }, { 130, 260 }, { 100, 190 }, { 270, 390 }}
+	};
+	const LPCTSTR models[4] = { oaktree1_png , oaktree2_png , oaktree3_png , oaktree4_3_png };
+	int modes_height[4] = {150, 100, 100, 100};
+	setupGameField(gf);
+
+	registerEntity(500, 500, 30, "grass", smallgrass_png, NULL, NULL, "");
+	registerEntity(60, 350, 30, "grass", smallgrass_png, NULL, NULL, "");
+	registerEntity(560, 430, 30, "grass", smallgrass_png, NULL, NULL, "");
+	registerEntity(300, 260, 30, "grass", smallgrass_png, NULL, NULL, "");
+
+	init_plant(60, 70, 900, 101, oaktree4_1_png, oaktree4_2_png, oaktree4_3_png);
+
+	for (int i = 0; i < 6; i++) {
+		registerEntity(cords[0][i][_X], cords[0][i][_Y], 100, "tree", oaktree3_png, NULL, NULL, "Prop:", "Rect", cords[0][i][_X] + 40, cords[0][i][_Y] + 70, 20, 10);
+	}
+	for (int i = 0; i < 6; i++) {
+		registerEntity(cords[1][i][_X], cords[1][i][_Y], 100, "tree", oaktree4_3_png, NULL, NULL, "Prop:", "Rect", cords[1][i][_X] + 40, cords[1][i][_Y] + 70, 20, 10);
+	}
+
 }

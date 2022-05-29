@@ -1,11 +1,19 @@
 #include "event_manager.c"
+#include <winuser.h>
 
 void mainloop(const char* arg) {
 	ExMessage message;
 
-	GameField gf = *init_gamefield(L"", background_png);
+	// world creation V
+	GameField gamefield_00 = *init_gamefield("gamefield_00.txt", background_00_png);
+	GameField gamefield_01 = *init_gamefield("gamefield_01.txt", background_01_png);
+	setNeighbours(&gamefield_00, &gamefield_01, NULL, NULL, NULL);
+	// world creation /\
 	
-	createObjects(&gf);
+	createObjects00(&gamefield_00);
+	createObjects01(&gamefield_01);
+
+	setupGameField(&gamefield_00);
 	
 	initgraph(SCREEN_WIDTH, SCREEN_HEIGHT);
 	
@@ -22,6 +30,7 @@ void mainloop(const char* arg) {
 
 		all_actions(tick);
 		renderAll(true);
+		showPlayerInfo();
 		nextCadrAll(tick);
 		FlushBatchDraw();
 	}
