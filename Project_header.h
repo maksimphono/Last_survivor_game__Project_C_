@@ -17,6 +17,13 @@ const LPCTSTR bigtree_png = L"Projects//Game_project//assets//bigtree.png";
 const LPCTSTR brokenboat_png = L"Projects//Game_project//assets//brokenboat.png";
 const LPCTSTR sea_png = L"Projects//Game_project//assets//sea.png";
 const LPCTSTR seashell1_png = L"Projects//Game_project//assets//seashell1.png";
+const LPCTSTR magicstone1_png = L"Projects//Game_project//assets//magicstone1.png";
+const LPCTSTR axe_png = L"Projects//Game_project//assets//axe.png";
+const LPCTSTR apple_png = L"Projects//Game_project//assets//apple.png";
+const LPCTSTR nullitem_png = L"Projects//Game_project//assets//null_item.png";
+const LPCTSTR aidkit_png = L"Projects//Game_project//assets//aid_kit.png";
+const LPCTSTR icecream_png = L"Projects//Game_project//assets//icecream.png";
+const LPCTSTR banana_png = L"Projects//Game_project//assets//banana.png";
 
 const LPCTSTR oaktree1_png = L"Projects//Game_project//assets//oaktree_3.png";
 const LPCTSTR oaktree2_png = L"Projects//Game_project//assets//oaktree1_3.png";

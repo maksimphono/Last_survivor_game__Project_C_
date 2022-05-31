@@ -9,6 +9,10 @@ void button_press(char btn, Entity* player) {
 	static int x = 500, y = 400;
 	int step = (*(Player*)(player->child)).hvstep;
 
+	if (isdigit(btn)) {
+		main_player->item_in_hand = btn - '0';
+		return;
+	}
 	switch (btn) {
 	case 'W':
 		move_with_collision(player, 0, -step);
@@ -31,6 +35,9 @@ void button_press(char btn, Entity* player) {
 	case 'K':
 		saveGameField(getWorkingField(), project_name);
 		break;
+	case 'Q':
+		drop_item_from_hand();
+		break;
 	}
 }
 
@@ -45,17 +52,15 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 		button_press(message->vkcode, player);
 
 	if (message->message == WM_LBUTTONDOWN) {
-		int x = message->x - 25, y = message->y - 25;
-
-		int points[4][MAX_VECTOR_NUM][4] = {
-			{{x, y, x + 50, y}},
-			{{ x, y + 50, x + 50, y + 50}},
-			{{x, y, x, y + 50}},
-			{{x + 50, y, x + 50, y + 50}}
-		};
-
-		createByPoints(x, y, 50, "Box", box3_png, NULL, Stop_Action, points);
-		message->message = NULL;
+		int x = message->x, y = message->y;
+		Item* item = main_player->items[main_player->item_in_hand - 1];
+		if (item != NULL && item->use != NULL) {
+			//main_player->items[main_player->item_in_hand - 1] = item->use(item, x, y);
+			if (item->use(item, x, y) == NULL) {
+				kill_entity(main_player->items[main_player->item_in_hand - 1]->parent);
+				main_player->items[main_player->item_in_hand - 1] = NULL;
+			}
+		}
 	}
 	else if (message->message == WM_RBUTTONDOWN) {
 		setTarget(player, "Points", message->x, message->y);

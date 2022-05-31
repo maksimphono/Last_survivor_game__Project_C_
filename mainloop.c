@@ -20,7 +20,7 @@ void mainloop(const char* arg) {
 	BeginBatchDraw();
 	SetWorkingImage();
 	for (;; tick++) {
-		if (tick == MAX_INT) tick = 0;
+		if (tick == 999999999) tick = 0;
 		
 		renderBG();
 		
@@ -29,10 +29,13 @@ void mainloop(const char* arg) {
 		event_manager(&message); //				manage event
 
 		all_actions(tick);
+		Reduce_Fullness_Action(main_player->parent, tick);
 		renderAll(true);
 		showPlayerInfo();
 		nextCadrAll(tick);
+		checkPlayer(tick);
 		FlushBatchDraw();
+
 	}
 	EndBatchDraw();
 	closegraph();
