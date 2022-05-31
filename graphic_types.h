@@ -1,11 +1,9 @@
 #ifndef GRAPHIC_TYPES
+#pragma warning (disable : 4996)
 #define GRAPHIC_TYPES "graphic_types"
+#define for_nodes(node) for(EntityNode* node = getWorkingField()->object_list->head; (long)node != ##NULL; node = node->next)
+
 typedef unsigned long long ull;
-
-LPCTSTR MAIN_BG_MODEL_PATH = L"assets\\main_bg_01.png";
-LPCTSTR MAIN_CH_MODEL_PATH = L"assets\\test_transp.png";
-LPCTSTR BONE_MODEL_PATH = L"assets\\bone.png";
-
 typedef enum { FIGURE, IMG, ENTITY, ENTLIST, ENTNODE } GRAPHIC_TYPE;
 typedef enum { ELLIPSE, LINE, RECTANGLE} PRIMITIVE_TYPE;
 typedef enum { NONE, BONE, EFFECT, OBJECT, ITEM, MOB, WALL } ENTITY_TYPE;
@@ -46,7 +44,7 @@ typedef struct Figure {
 	int current_cadr;
 	int cadr_num;
 	int speed;
-
+	LPCTSTR file_name;
 } Figure;
 
 typedef struct FigureArray {
@@ -66,6 +64,8 @@ typedef struct Entity {
 	Prop* phis_model;
 	Entity* connected;
 	int connected_num;
+	const char* additional_attributes[ADDITIONAL_ATTRIBUTES_NUM];
+	bool movable;
 	void* child;
 	int target[2];
 	int vision_radius;
@@ -102,7 +102,7 @@ typedef struct EntityList {
 typedef struct GameField {
 	Figure* background;
 	Figure* background_source;
-	LPCTSTR storage_file_path;
+	const char* storage_file_path;
 	DWORD* bg_code;
 	DWORD* bg_code_src;
 	GameField* upper;
@@ -169,6 +169,7 @@ Figure* init_figure(int x, int y, int height, LPCTSTR path_to_image) {
 		self->X = x;
 		self->Y = y;
 		self->speed = DEFAULT_ANIMATION_SPEED;
+		self->file_name = path_to_image;
 	}
 	return self;
 }
@@ -229,6 +230,7 @@ Entity* init_entity(int x, int y, int height, LPCTSTR path_to_image) {
 	self->phis_model = NULL;
 	self->loop_action = NULL;
 	self->collision_action = NULL;
+	self->movable = true;
 	return self;
 }
 
@@ -258,7 +260,7 @@ Entity* reinit_entity(Entity* self, int x, int y, int height, LPCTSTR path_to_im
 	self->collision_action = NULL;
 	self->loop_action = NULL;
 	self->phis_model = NULL;
-
+	self->movable = true;
 	return self;
 }
 
@@ -269,7 +271,8 @@ void del_entity(Entity* self) {
 	int len = 0;
 	Entity** object = NULL;
 	
-	if (self->phis_model != NULL) del_prop(self->phis_model);
+	self->phis_model = NULL;
+	//if (self->phis_model != NULL) del_prop(self->phis_model);
 	kill_figure(self->figure);
 	self = (Entity*)malloc(sizeof(Entity));
 
@@ -344,7 +347,7 @@ EntityNode* appendEntNode(EntityList* self, Entity* object);
 
 // GameField methods:
 
-GameField* init_gamefield(LPCTSTR path_to_storage_file, LPCTSTR background_image_path) {
+GameField* init_gamefield(const char* path_to_storage_file, LPCTSTR background_image_path) {
 	static GameField* self;
 	self = (GameField*)malloc(sizeof(GameField));
 	self->object_list = init_entlist();
@@ -384,10 +387,51 @@ bool loadGameField(GameField* gf) {
 	if (gf == NULL) return false;
 	EntityNode* node = workingGameField->object_list->head;
 	for (; node->object != player; node = node->next);
-	appendEntNode(gf->object_list, node);
 	removeEntNode(workingGameField->object_list, node);
+	appendEntNode(gf->object_list, node);
 	setupGameField(gf);
 	return true;
+}
+
+bool saveGameField(GameField* gf, const char* project_name) {
+	FILE* file;
+	char path[99] = {};
+	sprintf(path, "%s\\%s\\%s\\%s", "Projects", project_name, "Storage", gf->storage_file_path);
+	file = fopen(path, "w");
+	VectorArr varrays[4];
+	VectorArr varray;
+
+	if (gf == NULL || gf->storage_file_path == "") return false;
+	for_nodes(node) {
+		fprintf(file, "%s\n", node->object->name);
+		fprintf(file, "%d %d\n", node->object->X, node->object->Y);
+		if (node->object->phis_model == NULL) continue;
+		varrays[0] = node->object->phis_model->upper;
+		varrays[1] = node->object->phis_model->lower;
+		varrays[2] = node->object->phis_model->left;
+		varrays[3] = node->object->phis_model->right;
+		for (int i = 0; i < 4; i++) {
+			varray = varrays[i];
+			for (Vector* v = varray.vectors; v != varray.vectors + varray.length; v++) {
+				fprintf(file, "%d %d %d %d,", v->p1->X, v->p1->Y, v->p2->X, v->p2->Y);
+			}
+			fprintf(file, "\n");
+		}
+	}
+	fclose(file);
+	return true;
+}
+
+void readGameField(GameField* gf, const char* project_name) {
+	FILE* file;
+	char path[99] = {};
+	char* string;
+	char* name;
+	int X, Y, height;
+	sprintf(path, "%s\\%s\\%s\\%s", "Projects", project_name, "Storage", gf->storage_file_path);
+	//kill_all_nodes(gf->object_list);
+	file = fopen(path, "r");
+	fclose(file);
 }
 
 // GameField methods /\
@@ -400,8 +444,8 @@ Entity* registerEntity(int x, int y, int height, const char* name, LPCTSTR path_
 	*/
 	EntityNode* new_node;
 	//static Entity* self;
-	int X, Y, radius;
-	int*** p_array = NULL;
+	int X, Y, radius, width;
+	//int* p_array[19];
 
 	if (killed_main_entity_list.length == 0) {
 		new_node = init_entnode(init_entity(x, y, height, path_to_image));
@@ -416,11 +460,43 @@ Entity* registerEntity(int x, int y, int height, const char* name, LPCTSTR path_
 	new_node->object->collision_action = collision_action;
 	new_node->object->name = name;
 
-	if (with_prop == "Prop:") {
+	if (with_prop == "Prop:" || with_prop == "static Prop:") {
 		va_list vertex_arrs;
 		va_start(vertex_arrs, with_prop);
 		const char* type = va_arg(vertex_arrs, const char*);
-		if (type == "BONES") {
+		if (type == "Square") {
+			X = va_arg(vertex_arrs, int);
+			Y = va_arg(vertex_arrs, int);
+			width = va_arg(vertex_arrs, int);
+			int p_array[4][19][4] = {
+				{{X, Y, X + width, Y}},
+				{{X, Y + width, X + width, Y + width}},
+				{{X, Y, X, Y + width}},
+				{{X + width, Y, X + width, Y + width}}
+			};
+			VectorArr up = *init_vectorarr(p_array[0]);
+			VectorArr down = *init_vectorarr(p_array[1]);
+			VectorArr left = *init_vectorarr(p_array[2]);
+			VectorArr right = *init_vectorarr(p_array[3]);
+			setProp(new_node->object, init_prop(BONES, up, down, left, right));
+			
+		} else if (type == "Rect") {
+				X = va_arg(vertex_arrs, int);
+				Y = va_arg(vertex_arrs, int);
+				width = va_arg(vertex_arrs, int);
+				height = va_arg(vertex_arrs, int);
+				int p_array[4][19][4] = {
+					{{X, Y, X + width, Y}},
+					{{X, Y + height, X + width, Y + height}},
+					{{X, Y, X, Y + height}},
+					{{X + width, Y, X + width, Y + height}}
+				};
+				VectorArr up = *init_vectorarr(p_array[0]);
+				VectorArr down = *init_vectorarr(p_array[1]);
+				VectorArr left = *init_vectorarr(p_array[2]);
+				VectorArr right = *init_vectorarr(p_array[3]);
+				setProp(new_node->object, init_prop(BONES, up, down, left, right));
+		} else if (type == "BONES") {
 			VectorArr up = va_arg(vertex_arrs, VectorArr);
 			VectorArr down = va_arg(vertex_arrs, VectorArr);
 			VectorArr left = va_arg(vertex_arrs, VectorArr);
@@ -432,6 +508,7 @@ Entity* registerEntity(int x, int y, int height, const char* name, LPCTSTR path_
 			//X = va_arg(vertex_arrs, int);
 			//Y = va_arg(vertex_arrs, int);
 		}
+		if (with_prop == "static Prop:") new_node->object->movable = false;
 		va_end(vertex_arrs);
 		
 	}
@@ -510,8 +587,8 @@ EntityNode* appendEntNode(EntityList* self, EntityNode* new_node) {
 		self->head->next = new_node;
 	}
 	else {
-		new_node->prev = self->tail;
 		self->tail->next = new_node;
+		new_node->prev = self->tail;
 	}
 	self->tail = new_node;
 	self->tail->next = NULL;

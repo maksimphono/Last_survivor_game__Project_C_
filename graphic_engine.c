@@ -120,6 +120,7 @@ void setPosition(Entity* self, int x, int y) {
 	/*
 	Sets object (second argument) of type 'type' X coordinate as value of 'third argument', Y coordinate as value of 'fourth' argument
 	*/
+	if (self->phis_model == NULL) return;
 	shift(PROP, x - self->phis_model->center->X, y - self->phis_model->center->Y, self->phis_model);
 	self->X = x - self->figure->width / 2;
 	self->Y = y - self->figure->height / 2;
@@ -157,7 +158,7 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 			break;
 		}
 		*/
-		if (currentNode->object != self && node_model != NULL && correct_direction &&
+		if (currentNode->object != self && node_model != NULL && !node_model->nocollide && correct_direction &&
 			prop_centers_distance(node_model, self_model) <= self->vision_radius) {
 			if (collide_side(self_model, node_model, step, side)) {
 				obstacles[obstacle_num++] = currentNode->object;
@@ -216,7 +217,7 @@ bool move(GRAPHIC_TYPE type, ...) {
 		break;
 	case ENTITY: // if object is 'Entity', i will check collision with all objects
 		entity = va_arg(arguments, Entity*);
-		if ((unsigned long long)entity == 0xFFFFFFFFFFFFFFCF || entity == NULL) return false;
+		if (!entity->movable || (unsigned long long)entity == 0xFFFFFFFFFFFFFFCF || entity == NULL) return false;
 		dx = va_arg(arguments, int);
 		dy = va_arg(arguments, int);
 		
@@ -226,7 +227,8 @@ bool move(GRAPHIC_TYPE type, ...) {
 			side = (dy < 0) ? UP : DOWN;
 
 			if (entity->Y + entity->figure->height + dy >= SCREEN_HEIGHT || entity->Y + dy <= 0) { // <-- complete
-				entity->collision_action(entity, NULL, &dx, &dy, side);
+				if (entity->collision_action != NULL) entity->collision_action(entity, NULL, &dx, &dy, side);
+				return false;
 			}
 		}
 
@@ -241,7 +243,8 @@ bool move(GRAPHIC_TYPE type, ...) {
 			side = (dx < 0) ? LEFT : RIGHT;
 		
 			if (entity->X + entity->figure->width + dx >= SCREEN_WIDTH || entity->X + dx <= 0) {
-				entity->collision_action(entity, NULL, &dx, &dy, side);
+				if (entity->collision_action != NULL) entity->collision_action(entity, NULL, &dx, &dy, side);
+				return false;
 			}
 
 		}
@@ -365,6 +368,16 @@ void renderBG() {
 void nextCadrAll(int tick) {
 	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
 		if (tick % node->object->figure->speed == 0) node->object->figure->current_cadr = next_cadr(node->object->figure);
+	}
+}
+
+void renderList(EntityList* list) {
+	DWORD* dst;
+	VectorArr** vector_arrs;
+	memmove(workingGameField->bg_code, workingGameField->bg_code_src, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
+	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
+		dst = move_transparent_image(0, 0, node->object->figure, BLACK, false);
+		memmove(workingGameField->bg_code, dst, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(DWORD));
 	}
 }
 

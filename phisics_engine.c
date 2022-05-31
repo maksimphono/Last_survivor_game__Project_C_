@@ -70,7 +70,7 @@ void del_vector(Vector* self) {
 
 void addVector(VectorArr* self, int x1, int y1, int x2, int y2);
 
-VectorArr* init_vectorarr(int n_array[][4], ...) {
+VectorArr* init_vectorarr(int n_array[19][4], ...) {
 	static VectorArr* self;
 	self = (VectorArr*)malloc(sizeof(VectorArr));
 	va_list arguments;
