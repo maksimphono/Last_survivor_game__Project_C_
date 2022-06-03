@@ -492,4 +492,37 @@ const bool collide_side(Prop* self, Prop* prop, int min_distance, COLLISION_SIDE
 		
 	return false;
 }
+
+const bool collide_vector_side(Vector* vector, Prop* prop, int min_distance, COLLISION_SIDE side) {
+	Vector* pivot, * v1, * v2, * v3, * v4;
+	VectorArr* prop_varray = NULL;
+	int distance;
+	v1 = vector;
+
+	if (vector == NULL || prop == NULL) return false;
+
+	if (prop->collision_type == BONES) {
+		switch (side) {
+		case UP:
+			prop_varray = &prop->lower;
+			break;
+		case DOWN:
+			prop_varray = &prop->upper;
+			break;
+		case LEFT:
+			prop_varray = &prop->right;
+			break;
+		case RIGHT:
+			prop_varray = &prop->left;
+			break;
+		default:
+			return false;
+		}
+		
+		for (Vector* v2 = prop_varray->vectors; v2 != prop_varray->vectors + prop_varray->length; v2++) {
+			if (new_line_cross(v1, v2, min_distance)) return true;
+		}
+	}
+	return false;
+}
 #endif

@@ -130,7 +130,7 @@ void setPosition(Entity* self, int x, int y) {
 	self->figure->Y = y - self->figure->height / 2;
 	self->lower_edge = self->Y + self->figure->height;
 }
-bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* self, int step, COLLISION_SIDE side) {
+bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* self, int step, COLLISION_SIDE side, PHISICS_TYPE type = PROP) {
 	/*
 	Checks collision of self and any other object on the field
 	*/
@@ -142,22 +142,6 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 	if (self_model->nocollide) return false;
 	for (EntityNode* currentNode = workingGameField->object_list->head; currentNode != NULL; currentNode = currentNode->next) {
 		node_model = currentNode->object->phis_model;
-		/*
-		switch (side) {
-		case UP:
-			correct_direction = (self->Y > currentNode->object->Y);
-			break;
-		case DOWN:
-			correct_direction = (self->Y < currentNode->object->Y);
-			break;
-		case RIGHT:
-			correct_direction = (self->X < currentNode->object->X);
-			break;
-		case LEFT:
-			correct_direction = (self->X > currentNode->object->X);
-			break;
-		}
-		*/
 		if (currentNode->object != self && node_model != NULL && !node_model->nocollide && correct_direction &&
 			prop_centers_distance(node_model, self_model) <= self->vision_radius) {
 			if (collide_side(self_model, node_model, step, side)) {
@@ -166,6 +150,47 @@ bool check_collision_with_all(Entity* obstacles[MAX_OBSTACLE_NUMBER], Entity* se
 		}
 	}
 	return obstacles == NULL;
+}
+
+bool check_collision_line_with_all(Vector* line, Entity* object, int step, COLLISION_SIDE side) {
+	Prop* node_model = NULL;
+	if (object->phis_model == NULL) return false;
+	//if (object->phis_model->nocollide) return false;
+	for (EntityNode* currentNode = workingGameField->object_list->head; currentNode != NULL; currentNode = currentNode->next) {
+		node_model = currentNode->object->phis_model;
+		if (currentNode->object != object && node_model != NULL && !node_model->nocollide &&
+			distance_to_vector(node_model->center, line) <= object->vision_radius) {
+			if (collide_vector_side(line, node_model, step, side)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool can_see(Entity* self, Entity* object) {
+	COLLISION_SIDE side;
+	Entity** obstacles = (Entity**)malloc(MAX_OBSTACLE_NUMBER * sizeof(Entity*));
+	int points[19][4] = { {self->center_x, self->center_y, object->center_x, object->center_y} };
+	//Prop ray = *init_prop(BONES, init_vectorarr(points), init_vectorarr(points), init_vectorarr(points), init_vectorarr(points));
+	Vector* line = init_vector(self->center_x, self->center_y, object->center_x, object->center_y);
+
+	if (line->length >= self->vision_radius) return false;
+
+	if (object->center_x <= self->center_x) {
+		side = LEFT;
+	}
+	else {
+		side = RIGHT;
+	}
+	if (check_collision_line_with_all(line, object, 1, side)) return false;
+	if (object->center_y <= self->center_y) {
+		side = UP;
+	}
+	else {
+		side = DOWN;
+	}
+	return !check_collision_line_with_all(line, object, 1, side);
 }
 
 bool setPhisModel(Entity* self, int points[4][MAX_VECTOR_NUM][4]) {
@@ -183,7 +208,7 @@ void setFigure(Entity* self, int height, LPCTSTR picture) {
 }
 
 bool connectEntity(Entity* self, Entity* object) {
-	self->connected = object;
+	self->connected[0] = object;
 	return true;
 }
 

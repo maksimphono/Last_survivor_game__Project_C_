@@ -62,7 +62,7 @@ typedef struct Entity {
 	Figure* figure;
 	FigureArray bones;
 	Prop* phis_model;
-	Entity* connected;
+	Entity** connected;
 	int connected_num;
 	const char* additional_attributes[ADDITIONAL_ATTRIBUTES_NUM];
 	bool movable;
@@ -726,11 +726,12 @@ void kill_entnode(EntityNode* self) {
 	*/
 	//del_prop(self->object->phis_model);
 	self->object->phis_model = NULL;
-	self->object->connected = NULL;
+	
 	for (EntityNode* node = workingGameField->object_list->head; node != NULL; node = node->next) {
-		if (node->object->connected == self->object) node->object->connected = NULL;
-		if (node->object->connected == self->object) node->object->connected = NULL;
+		for (Entity** connected = node->object->connected; connected != node->object->connected + MAX_ENTITY_NUM; connected++)
+			if (*connected == self->object) connected = NULL;
 	}
+	memset(self->object->connected, NULL, MAX_ENTITY_NUM * sizeof(Entity));
 	removeEntNode(workingGameField->object_list, self);
 	appendEntNode(&killed_main_entity_list, self);
 }
