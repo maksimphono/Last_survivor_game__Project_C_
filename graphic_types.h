@@ -475,6 +475,8 @@ Entity* registerEntity(int x, int y, int height, const char* name, LPCTSTR path_
 				{{X + width, Y, X + width, Y + width}}
 			};
 			VectorArr up = *init_vectorarr(p_array[0]);
+			if (ull(up.vectors[0].p1) == 0xcdcdcdcdcdcdcdcd)
+				up = *init_vectorarr(p_array[0]);
 			VectorArr down = *init_vectorarr(p_array[1]);
 			VectorArr left = *init_vectorarr(p_array[2]);
 			VectorArr right = *init_vectorarr(p_array[3]);

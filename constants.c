@@ -1,7 +1,7 @@
 #include <graphics.h>
 
 #define MAX_INT 4294967296
-#define MAX_IMAGE_NUM 59
+#define MAX_IMAGE_NUM 159
 #define MAX_ENTITY_NUM 19
 #define MAX_VERTEX_NUM 19
 #define MAX_VECTOR_NUM 19
