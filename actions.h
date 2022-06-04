@@ -42,6 +42,14 @@ Item* increase_player_fp(Item* self, int x, int y) {
 	return NULL;
 }
 
+Item* shoot_gun(Item* gun, int x, int y) {
+	if (!gun->reload) {
+		gun->reload = gun->reload_time;
+		init_bullet(main_player->parent->center_x, main_player->parent->center_y, x, y);
+	}
+	return gun;
+}
+
 //				Collision actions:
 
 const char* Stop_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
@@ -50,18 +58,67 @@ const char* Stop_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLIS
 	return "Stop";
 }
 
+const char* Reduce_HP_Bullet_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
+	union {
+		Plant* plant;
+		Mob* mob;
+	};
+	Bullet* bullet = (Bullet*)(self->child);
+	if (obstacle != NULL && obstacle->name == "Plant") {
+		plant = (Plant*)(obstacle->child);
+		plant->health -= bullet->damage;
+	}
+	else if (obstacle != NULL && obstacle->name == "Mob") {
+		mob = (Mob*)(obstacle->child);
+		mob->health -= bullet->damage;
+		if (mob->health <= 0) kill_entity(mob->parent);
+	}
+	kill_entity(self);
+	return "Reduse_Hp";
+}
+
+const char* Reload_Gun_Action(Entity* self, int tick) {
+	Item* gun = (Item*)(self->child);
+	if (gun->reload > 0) gun->reload--;
+	return "Reload";
+}
+
+const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
+	if (!obstacle->movable) {
+		return Stop_Action(self, obstacle, dx, dy, side);
+	}
+	if (*dx && !move_with_collision(obstacle, *dx, *dy)) {
+		*dx = 0;
+	}
+	else if (*dy && !move_with_collision(obstacle, *dx, *dy)) {
+		*dy = 0;
+	}
+	return "Push";
+}
+
 const char* Move_to_Target_Action(Entity* self, int tick) {
-	//move_directly(self, self->target[_X], self->target[_Y], 5);
+	union {
+		Bullet* bullet;
+	};
+	int dstep = 2;
 	if (player == self) {
 		if (tick % PLAYER_SPEED) return "";
+		dstep = main_player->dstep;
 	}
+	else if (self->name == "Mob") dstep = (*(Mob*)self->child).dstep;
 	if (!self->target[0] || !self->target[1]) return "";
-	if (move_directly(self, self->target[_X], self->target[_Y], (*(Player*)(self->child)).dstep)) {
+	if (move_directly(self, self->target[_X], self->target[_Y], dstep)) {
 		self->target[_X] = 0;
 		self->target[_Y] = 0;
 		self->move_axis = 0;
 	}
 	return "Move directly";
+}
+
+const char* Move_by_line_Action(Entity* self, int tick) {
+	if (!self->target[0] && !self->target[1]) return "";
+	move_by_line(self, self->target[_X], self->target[_Y], (*(Bullet*)(self->child)).dstep);
+	return "Move by line";
 }
 
 const char* Plant_Grow_phase2_Action(Entity* self, int tick) {
@@ -86,20 +143,6 @@ const char* Plant_Grow_pahse1_Action(Entity* self, int tick) {
 	}
 	
 	return "Grow process";
-}
-
-
-const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
-	if (!obstacle->movable) { 
-		return Stop_Action(self, obstacle, dx, dy, side);
-	}
-	if (*dx && !move_with_collision(obstacle, *dx, *dy)) {
-		*dx = 0;
-	}
-	else if (*dy && !move_with_collision(obstacle, *dx, *dy)) {
-		*dy = 0;
-	}
-	return "Push";
 }
 
 const char* Player_Movement_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
@@ -135,8 +178,51 @@ const char* Player_Loop_Action(Entity* self, int tick) {
 	if (self->distance_to_target >= main_player->dstep) {
 		Move_to_Target_Action(self, tick);
 	}
+	//if (can_see(player, pivot_item->parent))
+		//line(player->center_x, player->center_y, pivot_item->parent->center_x, pivot_item->parent->center_y);//puts("");
 	
 	return Reduce_Fullness_Action(self, tick);
+}
+
+// Mob actions:
+
+const char* Attack_by_hit_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
+	Mob* self_mob = (Mob*)self->child;
+	if (self_mob->reload-- > 0) {
+		*dx = *dy = 0;
+		return "Reload";
+	}
+	self_mob->reload = self_mob->reload_time;
+	if (obstacle == player) {
+		setFigure(self_mob->parent, self_mob->parent->figure->height, self_mob->attack_figure);
+		(*(Player*)(player->child)).health -= self_mob->damage;
+	}
+	//Stop_Action(self, obstacle, dx, dy, side);
+	*dy = 0;
+	*dx = 0;
+	//if (side == UP | DOWN) *dy = 0;
+	//if (side == RIGHT | RIGHT) *dx = 0;
+	return "Attack by hit";
+}
+
+const char* Mob_Loop_Action_1(Entity* self, int tick) {//I don't know how to use the tick
+	int target[2] = {};
+	int step = 3;
+	Mob* self_mob = (Mob*)self->child;
+
+	if (can_see(self, player, 200)) {
+		setTarget(self, "Points", player->center_x, player->center_y);
+	}
+	else {
+		if (self->target[0] == 0 && self->target[1] == 0) {
+			target[0] = rand() % 50 - 25;
+			target[1] = rand() % 50 - 25;
+			setTarget(self, "Points", self->center_x - target[0], self->center_y - target[1]);
+			setFigure(self, self->figure->height, (*(Mob*)(self->child)).move_figure);
+		}
+	}
+	Move_to_Target_Action(self, tick);
+	return "Walk process";
 }
 
 const char* Reduce_Fullness_Action(Entity* self, int tick) {

@@ -1,6 +1,6 @@
 #include "Project_header.h"
 #define PLAYER_STEP 5
-#define PLAYER_SPEED 3
+#define PLAYER_SPEED 2
 #define PLANT_HP 100
 #define PLAYER_STARVATION_SPEED 100
 
@@ -32,10 +32,44 @@ struct Item {
 		struct {
 			int damage; // if it is a weapon
 			int distance;
+			int reload_time;
+			int reload;
 		};
 	};
 	Item* (*use)(Item* self, int x, int y);
 };
+
+typedef struct {
+	int speed;
+	int damage;
+	int dstep;
+	Entity* parent;
+} Bullet;
+
+typedef struct Mob {
+	Entity* parent;
+	int damage;
+	int health;
+	int reload_time;
+	int reload;
+	int dstep;
+	void (*attack)(Mob* self, Entity* target);
+	LPCTSTR move_figure;
+	LPCTSTR stand_figure;
+	LPCTSTR attack_figure;
+} Mob;
+
+typedef struct MobStar {
+	const char* name;
+	const int damage;
+	const int speed;
+	const int dstep;
+	const int health;
+	const int figure_height;
+	LPCTSTR attack_figure;
+	LPCTSTR walk_figure;
+	LPCTSTR stand_figure;
+} MobStar;
 
 typedef struct {
 	Entity* parent;
@@ -50,15 +84,26 @@ typedef struct {
 } Player;
 
 Player* main_player;
+MobStar mobStar = {
+	"Star", 30, 10, 2, 10, 50, mob_star_attack_png, mob_star_walk_png, mob_star_stand_png
+};
 
 const char* Plant_Grow_pahse1_Action(Entity* self, int tick);
 const char* Reduce_Fullness_Action(Entity* self, int tick);
 const char* Push_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side);
 const char* Stop_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side);
 const char* Player_Movement_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side);
+const char* Reduce_HP_Bullet_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side);
+const char* Attack_by_hit_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side);
 const char* Player_Loop_Action(Entity* self, int tick);
+const char* Move_to_Target_Action(Entity* self, int tick);
+const char* Move_by_line_Action(Entity* self, int tick);
+const char* Reload_Gun_Action(Entity* self, int tick);
+const char* Mob_Loop_Action_1(Entity* self, int tick);
+
 Item* increase_player_hp(Item* self, int x, int y);
 Item* increase_player_fp(Item* self, int x, int y);
+Item* shoot_gun(Item* gun, int x, int y);
 
 COLORREF _RGB(int lst[3]) {
 	return RGB(lst[0], lst[1], lst[2]);
@@ -92,13 +137,14 @@ Player* init_player(int x, int y) {
 		{{x, y, x, y + 50}},
 		{{x + 50, y, x + 50, y + 50}}
 	};
-	self->parent = createByPoints(x, y, 50, "Player", player_png, Player_Loop_Action, Player_Movement_Action, points);
+	//self->parent = createByPoints(x, y, 50, "Player", player_png, Player_Loop_Action, Player_Movement_Action, points);
+	self->parent = registerEntity(x, y, 50, "Player", player_png, Player_Loop_Action, Player_Movement_Action, "Prop:", "Square", x + 10, y + 10, 30);
 	player = self->parent;
 	self->parent->child = (void*)self;
 	self->fullness = 199;
 	self->health = 100;
 	self->dstep = PLAYER_STEP;
-	self->hvstep = 1;
+	self->hvstep = 2;
 	memset(self->items, NULL, 9 * sizeof(Item*));
 	self->item_in_hand = 1;
 	main_player = self;
@@ -125,13 +171,52 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 		break;
 	case GUN:
 		self->damage = points;
+		self->use = shoot_gun;
+		self->reload_time = 30;
+		self->reload = 30;
+		self->parent->loop_action = Reload_Gun_Action;
 		break;
 	case HP:
 		self->health_points = points;
 		self->use = increase_player_hp;
 		break;
+	default :
+		self->use = NULL;
 	}
+	return self;
+}
 
+Bullet* init_bullet(int center_x, int center_y, int target_x, int target_y) {
+	static Bullet* self;
+	self = (Bullet*)malloc(sizeof(Bullet));
+	self->parent = registerEntity(center_x, center_y, 30, "Bullet", bullet_png, Move_by_line_Action, Reduce_HP_Bullet_Action, "Prop:", "Square", center_x, center_y, 30);
+	setPosition(self->parent, center_x, center_y);
+	self->parent->child = (void*)self;
+	self->dstep = 6;
+	setTarget(self->parent, "Points", target_x, target_y);
+	return self;
+}
+
+Mob* init_mob(int x, int y, int height, LPCTSTR picture, const char* (*loop_action)(Entity*, int), const char* (*collision_action)(Entity*, Entity*, int*, int*, COLLISION_SIDE)) {
+	static Mob* self;
+	self = (Mob*)malloc(sizeof(Mob));
+	self->parent = registerEntity(x, y, height, "Mob", picture, loop_action, collision_action, "Prop:", "Square", x + 15, y + 15, height - 30);
+	self->parent->child = (void*)self;
+	self->reload_time = 30;
+	return self;
+}
+
+Mob* spawn_mob_Star(int x, int y) {
+	static Mob* self;
+	self = (Mob*)malloc(sizeof(Mob));
+	self = init_mob(x, y, mobStar.figure_height, mobStar.stand_figure, Mob_Loop_Action_1, Attack_by_hit_Action);
+	self->health = mobStar.health;
+	self->damage = mobStar.damage;
+	self->dstep = mobStar.dstep;
+	self->reload_time = 30;
+	self->move_figure = mobStar.walk_figure;
+	self->attack_figure = mobStar.attack_figure;
+	self->stand_figure = mobStar.stand_figure;
 	return self;
 }
 

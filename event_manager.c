@@ -54,7 +54,7 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 	if (message->message == WM_LBUTTONDOWN) {
 		int x = message->x, y = message->y;
 		Item* item = main_player->items[main_player->item_in_hand - 1];
-		if (item != NULL && item->use != NULL) {
+		if (item != NULL && (ull)item != 0xFFFFFFFFFFFFFFDF && item->use != NULL && (ull)item->use != 0xcdcdcdcdcdcdcdcd) {
 			//main_player->items[main_player->item_in_hand - 1] = item->use(item, x, y);
 			if (item->use(item, x, y) == NULL) {
 				kill_entity(main_player->items[main_player->item_in_hand - 1]->parent);
@@ -64,8 +64,9 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 	}
 	else if (message->message == WM_RBUTTONDOWN) {
 		setTarget(player, "Points", message->x, message->y);
-		player->loop_action = Move_to_Target_Action;
+		//player->loop_action = Move_to_Target_Action;
 	}
+	/*
 	if (message->message == WM_MOUSEMOVE) {
 		setlinecolor(WHITE);
 		circle(message->x, message->y, 50);
@@ -79,4 +80,5 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 		circle(prev_x, prev_y, 50);
 		outtextxy(prev_x, prev_y, t);
 	}
+	*/
 }

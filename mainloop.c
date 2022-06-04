@@ -27,7 +27,7 @@ void mainloop(const char* arg) {
 		peekmessage(&message, EM_MOUSE | EM_KEY);
 
 		event_manager(&message); //				manage event
-
+		if (message.message == WM_LBUTTONDOWN) message.message = NULL;
 		all_actions(tick);
 		Reduce_Fullness_Action(main_player->parent, tick);
 		renderAll(true);

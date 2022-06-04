@@ -51,6 +51,10 @@ void createObjects00(GameField* gf) {
 	init_item(70, 380, aidkit_png, HP, 30);
 	init_item(110, 380, banana_png, FOOD, 50);
 	init_item(150, 380, icecream_png, FOOD, 20);
+	init_item(310, 140, gun_png, GUN, 20);
+
+	//init_mob(330, 130, 50, mob_star_png, Mob_Walk_Action_1);
+	spawn_mob_Star(330, 130);
 
 	init_player(200, 100);
 
