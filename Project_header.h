@@ -26,6 +26,8 @@ const LPCTSTR icecream_png = L"Projects//Game_project//assets//icecream.png";
 const LPCTSTR banana_png = L"Projects//Game_project//assets//banana.png";
 const LPCTSTR bullet_png = L"Projects//Game_project//assets//bullet.png";
 const LPCTSTR gun_png = L"Projects//Game_project//assets//gun.png";
+const LPCTSTR log_item_png = L"Projects//Game_project//assets//log_item.png";
+const LPCTSTR row_meat_item_png = L"Projects//Game_project//assets//row_meat_item.png";
 
 const LPCTSTR mob_star_walk_png = L"Projects//Game_project//assets//mob_star_walk.png";
 const LPCTSTR mob_star_attack_png = L"Projects//Game_project//assets//mob_star_attack.png";
@@ -33,8 +35,17 @@ const LPCTSTR mob_star_stand_png = L"Projects//Game_project//assets//mob_star_st
 
 const LPCTSTR oaktree1_png = L"Projects//Game_project//assets//oaktree_3.png";
 const LPCTSTR oaktree2_png = L"Projects//Game_project//assets//oaktree1_3.png";
-const LPCTSTR oaktree3_png = L"Projects//Game_project//assets//oaktree2_3.png";
+
+const LPCTSTR oaktree3_3_png = L"Projects//Game_project//assets//oaktree2_3.png";
+const LPCTSTR oaktree3_2_png = L"Projects//Game_project//assets//oaktree2_2.png";
+const LPCTSTR oaktree3_1_png = L"Projects//Game_project//assets//oaktree2_1.png";
+
 const LPCTSTR oaktree4_3_png = L"Projects//Game_project//assets//oaktree4_3.png";
 const LPCTSTR oaktree4_2_png = L"Projects//Game_project//assets//oaktree4_2.png";
 const LPCTSTR oaktree4_1_png = L"Projects//Game_project//assets//oaktree4_1.png";
+
+const LPCTSTR pinetree_3_png = L"Projects//Game_project//assets//pinetree_3.png";
+const LPCTSTR pinetree_2_png = L"Projects//Game_project//assets//pinetree_2.png";
+const LPCTSTR pinetree_1_png = L"Projects//Game_project//assets//pinetree_1.png";
+
 #endif

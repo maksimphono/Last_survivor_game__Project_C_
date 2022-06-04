@@ -8,16 +8,10 @@ const int item_icon_size = 30;
 const int default_attack_distance = 40;
 int tick = 0;
 
-typedef struct {
-	Entity* parent;
-	int phase;
-	int time_phase_1;
-	int time_phase_2;
-	int health;
-	LPCTSTR phase1_figure;
-	LPCTSTR phase2_figure;
-	int start_grow;
-} Plant;
+const int spawn_log_item_id = 4;
+const int spawn_row_meat_item_id = 5;
+
+void spawnById(int id, int x, int y);
 
 typedef enum {_ITEM, FOOD, HP, WEAPON, GUN}ItemType;
 
@@ -40,6 +34,19 @@ struct Item {
 };
 
 typedef struct {
+	Entity* parent;
+	int phase;
+	int time_phase_1;
+	int time_phase_2;
+	int health;
+	LPCTSTR phase1_figure;
+	LPCTSTR phase2_figure;
+	int start_grow;
+	int drop_items_id[3];
+	void (*death_action)(int* id_arr, int , int);
+} Plant;
+
+typedef struct {
 	int speed;
 	int damage;
 	int dstep;
@@ -54,9 +61,11 @@ typedef struct Mob {
 	int reload;
 	int dstep;
 	void (*attack)(Mob* self, Entity* target);
+	void (*death_action)(int* id_arr, int, int);
 	LPCTSTR move_figure;
 	LPCTSTR stand_figure;
 	LPCTSTR attack_figure;
+	int drop_items_id[3];
 } Mob;
 
 typedef struct MobStar {
@@ -100,6 +109,7 @@ const char* Move_to_Target_Action(Entity* self, int tick);
 const char* Move_by_line_Action(Entity* self, int tick);
 const char* Reload_Gun_Action(Entity* self, int tick);
 const char* Mob_Loop_Action_1(Entity* self, int tick);
+void drop_items_death_action(int* id_arr, int, int);
 
 Item* increase_player_hp(Item* self, int x, int y);
 Item* increase_player_fp(Item* self, int x, int y);
@@ -109,10 +119,12 @@ COLORREF _RGB(int lst[3]) {
 	return RGB(lst[0], lst[1], lst[2]);
 }
 
-Plant* init_plant(int x, int y, int time, int height, LPCTSTR figure0_path, LPCTSTR figure1_path, LPCTSTR figure2_path) {
+Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points);
+
+Plant* init_plant(int x, int y, int time, int height, LPCTSTR figure0_path, LPCTSTR figure1_path, LPCTSTR figure2_path, int collision_width, int collision_height) {
 	static Plant* self;
 	self = (Plant*)malloc(sizeof(Plant));
-	self->parent = registerEntity(x, y, height, "Plant", figure0_path, NULL, NULL, "Prop:", "Rect", x + 40, y + 70, 20, 10);
+	self->parent = registerEntity(x, y, height, "Plant", figure0_path, NULL, NULL, "Prop:", "Rect", x + (int)(height * 0.4), y + (int)(height * 0.8), collision_width, collision_height);
 	self->parent->child = (void*)self;
 	self->parent->loop_action = Plant_Grow_pahse1_Action;
 	self->parent->movable = false;
@@ -122,7 +134,22 @@ Plant* init_plant(int x, int y, int time, int height, LPCTSTR figure0_path, LPCT
 	self->phase2_figure = figure2_path;
 	self->start_grow = tick;
 	self->health = PLANT_HP;
+	memset(self->drop_items_id, -1, sizeof(int) * 3);
+	self->drop_items_id[0] = 4;
+	self->death_action = drop_items_death_action;
 	return self;
+}
+
+void spawn_oak_tree_3(int x, int y) {
+	Plant* tree = init_plant(x, y, 900, 100, oaktree4_1_png, oaktree4_2_png, oaktree4_3_png, 20, 10);
+}
+
+void spawn_oak_tree_2(int x, int y) {
+	Plant* tree = init_plant(x, y, 1000, 100, oaktree3_1_png, oaktree3_2_png, oaktree3_3_png, 20, 10);
+}
+
+void spawn_oak_pinetree(int x, int y) {
+	Plant* tree = init_plant(x, y, 1200, 125, pinetree_1_png, pinetree_2_png, pinetree_3_png, 20, 10);
 }
 
 inline void increase_health(int hp) { main_player->health = min(main_player->health + hp, 100); }
@@ -217,19 +244,26 @@ Mob* spawn_mob_Star(int x, int y) {
 	self->move_figure = mobStar.walk_figure;
 	self->attack_figure = mobStar.attack_figure;
 	self->stand_figure = mobStar.stand_figure;
+	memset(self->drop_items_id, -1, sizeof(int) * 3);
+	self->drop_items_id[0] = 5;
+	self->death_action = drop_items_death_action;
 	return self;
 }
 
-void collect_item(Item* self) {
+bool collect_item(Item* self) {
 	Entity* parent = self->parent;
-	setPosition(parent, 50, 560);
-	parent->phis_model->nocollide = true;
-	for (Item** item = main_player->items; item != main_player->items + 9; item++) {
+	Item** item = main_player->items;
+	for (; item != main_player->items + 9; item++) {
 		if (*item == NULL) {
 			*item = self;
 			break;
 		}
 	}
+	if (item != main_player->items + 9) {
+		parent->phis_model->nocollide = true;
+		return true;
+	} 
+	return false;
 }
 
 void drop_item_from_hand() {

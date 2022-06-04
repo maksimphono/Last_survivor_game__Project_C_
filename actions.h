@@ -17,17 +17,29 @@ void loadGameField_with_items(GameField* gf) {
 
 void checkPlayer(int tick) {
 	if (main_player->health <= 0) {
-		//setlinestyle(PS_SOLID, 4, NULL, 0);
 		settextstyle(50, 20, L"");
 		settextcolor(RED);
-		//initgraph(400, 400);
-		//registerEntity(300, 300, 60, "GameOver", star_png, NULL, NULL, "");
 		outtextxy(250, 300, L"GameOver");
 		FlushBatchDraw();
 		Sleep(3000);
-		//closegraph();
 		exit(0);
 	}
+}
+
+void drop_items_death_action(int* id_arr, int x, int y) {
+	for (int* item_id = id_arr; *item_id != -1; item_id++) {
+		spawnById(*item_id, x, y);
+	}
+}
+
+void kill_mob(Mob* self) {
+	drop_items_death_action(self->drop_items_id, self->parent->center_x, self->parent->center_y);
+	kill_entity(self->parent);
+}
+
+void kill_plant(Plant* self) {
+	drop_items_death_action(self->drop_items_id, self->parent->center_x, self->parent->center_y);
+	kill_entity(self->parent);
 }
 
 //				Items usages:
@@ -67,11 +79,11 @@ const char* Reduce_HP_Bullet_Action(Entity* self, Entity* obstacle, int* dx, int
 	if (obstacle != NULL && obstacle->name == "Plant") {
 		plant = (Plant*)(obstacle->child);
 		plant->health -= bullet->damage;
+		if (plant->health <= 0) kill_plant(plant);
 	}
 	else if (obstacle != NULL && obstacle->name == "Mob") {
 		mob = (Mob*)(obstacle->child);
 		mob->health -= bullet->damage;
-		if (mob->health <= 0) kill_entity(mob->parent);
 	}
 	kill_entity(self);
 	return "Reduse_Hp";
@@ -168,8 +180,7 @@ const char* Player_Movement_Action(Entity* self, Entity* obstacle, int* dx, int*
 		}
 	}
 	else if (obstacle->name == "Item") {
-		collect_item((Item*)(obstacle->child));
-		return "Collect";
+		if (collect_item((Item*)(obstacle->child))) return "Collect";
 	}
 	return Push_Action(self, obstacle, dx, dy, side);
 }
@@ -178,13 +189,10 @@ const char* Player_Loop_Action(Entity* self, int tick) {
 	if (self->distance_to_target >= main_player->dstep) {
 		Move_to_Target_Action(self, tick);
 	}
-	//if (can_see(player, pivot_item->parent))
-		//line(player->center_x, player->center_y, pivot_item->parent->center_x, pivot_item->parent->center_y);//puts("");
-	
 	return Reduce_Fullness_Action(self, tick);
 }
 
-// Mob actions:
+//					Mob actions:
 
 const char* Attack_by_hit_Action(Entity* self, Entity* obstacle, int* dx, int* dy, COLLISION_SIDE side) {
 	Mob* self_mob = (Mob*)self->child;
@@ -197,11 +205,8 @@ const char* Attack_by_hit_Action(Entity* self, Entity* obstacle, int* dx, int* d
 		setFigure(self_mob->parent, self_mob->parent->figure->height, self_mob->attack_figure);
 		(*(Player*)(player->child)).health -= self_mob->damage;
 	}
-	//Stop_Action(self, obstacle, dx, dy, side);
 	*dy = 0;
 	*dx = 0;
-	//if (side == UP | DOWN) *dy = 0;
-	//if (side == RIGHT | RIGHT) *dx = 0;
 	return "Attack by hit";
 }
 
@@ -210,6 +215,7 @@ const char* Mob_Loop_Action_1(Entity* self, int tick) {//I don't know how to use
 	int step = 3;
 	Mob* self_mob = (Mob*)self->child;
 
+	if (self_mob->health <= 0) kill_mob(self_mob);
 	if (can_see(self, player, 200)) {
 		setTarget(self, "Points", player->center_x, player->center_y);
 	}
