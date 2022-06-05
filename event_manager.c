@@ -64,7 +64,6 @@ void event_manager(ExMessage* message) { // function, that manage all events fro
 	}
 	else if (message->message == WM_RBUTTONDOWN) {
 		setTarget(player, "Points", message->x, message->y);
-		//player->loop_action = Move_to_Target_Action;
 	}
 	/*
 	if (message->message == WM_MOUSEMOVE) {

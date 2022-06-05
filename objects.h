@@ -24,7 +24,7 @@ struct Item {
 		int hunger_points; // if it is food
 		int health_points; // if it is for HP
 		struct {
-			int damage; // if it is a weapon
+			int damage; // if it is a weapon or a gun
 			int distance;
 			int reload_time;
 			int reload;
@@ -94,7 +94,7 @@ typedef struct {
 
 Player* main_player;
 MobStar mobStar = {
-	"Star", 30, 10, 2, 10, 50, mob_star_attack_png, mob_star_walk_png, mob_star_stand_png
+	"Star", 30, 10, 2, 50, 50, mob_star_attack_png, mob_star_walk_png, mob_star_stand_png
 };
 
 const char* Plant_Grow_pahse1_Action(Entity* self, int tick);
@@ -114,6 +114,8 @@ void drop_items_death_action(int* id_arr, int, int);
 Item* increase_player_hp(Item* self, int x, int y);
 Item* increase_player_fp(Item* self, int x, int y);
 Item* shoot_gun(Item* gun, int x, int y);
+Item* shoot_rifle(Item* gun, int x, int y);
+Item* hit_with_tool(Item* tool, int x, int y);
 
 COLORREF _RGB(int lst[3]) {
 	return RGB(lst[0], lst[1], lst[2]);
@@ -142,6 +144,7 @@ Plant* init_plant(int x, int y, int time, int height, LPCTSTR figure0_path, LPCT
 
 void spawn_oak_tree_3(int x, int y) {
 	Plant* tree = init_plant(x, y, 900, 100, oaktree4_1_png, oaktree4_2_png, oaktree4_3_png, 20, 10);
+	tree->drop_items_id[1] = (rand() % 5 > 3) ? 6 : -1;
 }
 
 void spawn_oak_tree_2(int x, int y) {
@@ -164,7 +167,6 @@ Player* init_player(int x, int y) {
 		{{x, y, x, y + 50}},
 		{{x + 50, y, x + 50, y + 50}}
 	};
-	//self->parent = createByPoints(x, y, 50, "Player", player_png, Player_Loop_Action, Player_Movement_Action, points);
 	self->parent = registerEntity(x, y, 50, "Player", player_png, Player_Loop_Action, Player_Movement_Action, "Prop:", "Square", x + 10, y + 10, 30);
 	player = self->parent;
 	self->parent->child = (void*)self;
@@ -195,12 +197,10 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 	case WEAPON:
 		self->damage = points;
 		self->distance = default_attack_distance;
+		self->use = hit_with_tool;
 		break;
 	case GUN:
 		self->damage = points;
-		self->use = shoot_gun;
-		self->reload_time = 30;
-		self->reload = 30;
 		self->parent->loop_action = Reload_Gun_Action;
 		break;
 	case HP:
@@ -213,13 +213,35 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 	return self;
 }
 
-Bullet* init_bullet(int center_x, int center_y, int target_x, int target_y) {
+Item* spawn_small_gun(int x, int y) {
+	static Item* self;
+	self = (Item*)malloc(sizeof(Item));
+	self = init_item(x, y, gun_png, GUN, 20);
+	self->reload_time = 30;
+	self->reload = 30;
+	self->use = shoot_gun;
+	return self;
+}
+
+Item* spawn_rifle(int x, int y) {
+	static Item* self;
+	self = (Item*)malloc(sizeof(Item));
+	self = init_item(x, y, rifle_png, GUN, 40);
+	self->reload_time = 40;
+	self->reload = 40;
+	self->use = shoot_rifle;
+	self->distance = 300;
+	return self;
+}
+
+Bullet* init_bullet(int center_x, int center_y, int target_x, int target_y, int damage) {
 	static Bullet* self;
 	self = (Bullet*)malloc(sizeof(Bullet));
 	self->parent = registerEntity(center_x, center_y, 30, "Bullet", bullet_png, Move_by_line_Action, Reduce_HP_Bullet_Action, "Prop:", "Square", center_x, center_y, 30);
 	setPosition(self->parent, center_x, center_y);
 	self->parent->child = (void*)self;
 	self->dstep = 6;
+	self->damage = damage;
 	setTarget(self->parent, "Points", target_x, target_y);
 	return self;
 }

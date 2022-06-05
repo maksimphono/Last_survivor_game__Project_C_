@@ -20,6 +20,9 @@ void spawnById(int id, int x, int y) {
 	case 5:
 		init_item(x, y, row_meat_item_png, FOOD, 35);
 		break;
+	case 6:
+		init_item(x, y, apple_png, FOOD, 20);
+		break;
 	default:
 		return;
 	}
@@ -66,11 +69,14 @@ void createObjects00(GameField* gf) {
 	init_item(70, 230, magicstone1_png, _ITEM, 0);
 
 	init_item(70, 330, axe_png, WEAPON, 20);
+	init_item(110, 330, sword_png, WEAPON, 35);
+	spawn_rifle(150, 330);
+	spawn_small_gun(310, 140);
 	init_item(70, 380, apple_png, FOOD, 20);
 	init_item(70, 380, aidkit_png, HP, 30);
 	init_item(110, 380, banana_png, FOOD, 50);
 	init_item(150, 380, icecream_png, FOOD, 20);
-	init_item(310, 140, gun_png, GUN, 20);
+	//init_item(310, 140, gun_png, GUN, 20);
 
 	//init_mob(330, 130, 50, mob_star_png, Mob_Walk_Action_1);
 	spawn_mob_Star(330, 130);

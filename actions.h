@@ -57,9 +57,97 @@ Item* increase_player_fp(Item* self, int x, int y) {
 Item* shoot_gun(Item* gun, int x, int y) {
 	if (!gun->reload) {
 		gun->reload = gun->reload_time;
-		init_bullet(main_player->parent->center_x, main_player->parent->center_y, x, y);
+		init_bullet(main_player->parent->center_x, main_player->parent->center_y, x, y, gun->damage);
 	}
 	return gun;
+}
+
+Item* shoot_rifle(Item* gun, int x, int y) {
+	Entity* prey;
+	Vector* attack_vector;
+	if (!gun->reload) {
+		gun->reload = gun->reload_time;
+		//Bullet* bullet = init_bullet(main_player->parent->center_x, main_player->parent->center_y, x, y, gun->damage);
+		//bullet->dstep = 20;
+		//bullet->parent->loop_action = Move_to_Target_Action;
+		
+		//prey = can_see(player, player, 100);
+		double axis = (double)(y - player->center_y) / (double)(x - player->center_x);
+		double dY = ((gun->distance) * sin(atan(axis)));
+		double dX = dY / axis;
+		int step_y = (int)round(dY);
+		int step_x = (int)round(dX);
+
+		if (x < player->center_x) {	// if point lies by left and up !!! I also have to realize when point lies by left and down !!!
+			step_y = -step_y;
+			step_x = -step_x;
+		}
+		attack_vector = init_vector(player->center_x, player->center_y, player->center_x + step_x, player->center_y + step_y);
+		COLLISION_SIDE side = (player->center_x < x) ? RIGHT : LEFT;
+		Entity* prey = check_collision_line_with_all(attack_vector, player, 3, side);
+		line(attack_vector->p1->X, attack_vector->p1->Y, attack_vector->p2->X, attack_vector->p2->Y);
+		if (prey != NULL)
+			if (prey->name == "Plant") {
+				(*(Plant*)(prey->child)).health -= gun->damage;
+				return gun;
+			}
+			else if (prey->name == "Mob") {
+				(*(Mob*)(prey->child)).health -= gun->damage;
+				return gun;
+			}
+		side = (player->center_y < y) ? DOWN : UP;
+		prey = check_collision_line_with_all(attack_vector, player, 3, side);
+		if (prey == NULL) return gun;
+		if (prey->name == "Plant") {
+			(*(Plant*)(prey->child)).health -= gun->damage;
+			return gun;
+		}
+		else if (prey->name == "Mob") {
+			(*(Mob*)(prey->child)).health -= gun->damage;
+			return gun;
+		}
+	}
+	return gun;
+}
+
+Item* hit_with_tool(Item* tool, int x, int y) {
+	Vector* attack_vector;
+	double axis = (double)(y - player->center_y) / (double)(x - player->center_x);
+	double dY = ((tool->distance - 1) * sin(atan(axis)));
+	double dX = dY / axis;
+	int step_y = (int)round(dY);
+	int step_x = (int)round(dX);
+
+	if (x < player->center_x) {	// if point lies by left and up !!! I also have to realize when point lies by left and down !!!
+		step_y = -step_y;
+		step_x = -step_x;
+	}
+	attack_vector = init_vector(player->center_x, player->center_y, player->center_x + step_x, player->center_y + step_y);
+	COLLISION_SIDE side = (player->center_x < x)?RIGHT:LEFT;
+	Entity* prey = check_collision_line_with_all(attack_vector, player, 3, side);
+	//line(attack_vector->p1->X, attack_vector->p1->Y, attack_vector->p2->X, attack_vector->p2->Y);
+	if (prey != NULL)
+		if (prey->name == "Plant") {
+			(*(Plant*)(prey->child)).health -= tool->damage;
+			return tool;
+		}
+		else if (prey->name == "Mob") {
+			(*(Mob*)(prey->child)).health -= tool->damage;
+			return tool;
+		}
+	side = (player->center_y < y) ? DOWN : UP;
+	prey = check_collision_line_with_all(attack_vector, player, 3, side);
+	if (prey == NULL) return tool;
+	if (prey->name == "Plant") {
+		(*(Plant*)(prey->child)).health -= tool->damage;
+		return tool;
+	}
+	else if (prey->name == "Mob") {
+		(*(Mob*)(prey->child)).health -= tool->damage;
+		return tool;
+	}
+	
+	return tool;
 }
 
 //				Collision actions:
@@ -136,11 +224,16 @@ const char* Move_by_line_Action(Entity* self, int tick) {
 const char* Plant_Grow_phase2_Action(Entity* self, int tick) {
 	int old_height = self->figure->height;
 	Plant* plant = (Plant*)(self->child);
+	if (plant->health <= 0) {
+		kill_plant(plant);
+		return "Dead";
+	}
 	if ((tick - plant->start_grow) % plant->time_phase_2 == 0) {
 		setFigure(self, self->figure->height, plant->phase2_figure);
 		plant->phase++;
-		self->loop_action = NULL;
+		//self->loop_action = NULL;
 	}
+	
 
 	return "Grow process";
 }
@@ -152,6 +245,10 @@ const char* Plant_Grow_pahse1_Action(Entity* self, int tick) {
 		setFigure(self, self->figure->height, plant->phase1_figure);
 		plant->phase++;
 		self->loop_action = Plant_Grow_phase2_Action;
+	}
+	if (plant->health <= 0) {
+		kill_plant(plant);
+		return "Dead";
 	}
 	
 	return "Grow process";
@@ -216,7 +313,7 @@ const char* Mob_Loop_Action_1(Entity* self, int tick) {//I don't know how to use
 	Mob* self_mob = (Mob*)self->child;
 
 	if (self_mob->health <= 0) kill_mob(self_mob);
-	if (can_see(self, player, 200)) {
+	if (can_see(self, player, 200) != NULL) {
 		setTarget(self, "Points", player->center_x, player->center_y);
 	}
 	else {

@@ -17,8 +17,10 @@ const LPCTSTR bigtree_png = L"Projects//Game_project//assets//bigtree.png";
 const LPCTSTR brokenboat_png = L"Projects//Game_project//assets//brokenboat.png";
 const LPCTSTR sea_png = L"Projects//Game_project//assets//sea.png";
 const LPCTSTR seashell1_png = L"Projects//Game_project//assets//seashell1.png";
+
 const LPCTSTR magicstone1_png = L"Projects//Game_project//assets//magicstone1.png";
 const LPCTSTR axe_png = L"Projects//Game_project//assets//axe.png";
+const LPCTSTR sword_png = L"Projects//Game_project//assets//sword.png";
 const LPCTSTR apple_png = L"Projects//Game_project//assets//apple.png";
 const LPCTSTR nullitem_png = L"Projects//Game_project//assets//null_item.png";
 const LPCTSTR aidkit_png = L"Projects//Game_project//assets//aid_kit.png";
@@ -26,8 +28,10 @@ const LPCTSTR icecream_png = L"Projects//Game_project//assets//icecream.png";
 const LPCTSTR banana_png = L"Projects//Game_project//assets//banana.png";
 const LPCTSTR bullet_png = L"Projects//Game_project//assets//bullet.png";
 const LPCTSTR gun_png = L"Projects//Game_project//assets//gun.png";
+const LPCTSTR rifle_png = L"Projects//Game_project//assets//rifle_item.png";
 const LPCTSTR log_item_png = L"Projects//Game_project//assets//log_item.png";
 const LPCTSTR row_meat_item_png = L"Projects//Game_project//assets//row_meat_item.png";
+const LPCTSTR oak_tree4_item_png = L"Projects//Game_project//assets//oak_tree4_item.png";
 
 const LPCTSTR mob_star_walk_png = L"Projects//Game_project//assets//mob_star_walk.png";
 const LPCTSTR mob_star_attack_png = L"Projects//Game_project//assets//mob_star_attack.png";
