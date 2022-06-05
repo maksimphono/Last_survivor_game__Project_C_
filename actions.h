@@ -175,6 +175,8 @@ const char* Reduce_HP_Bullet_Action(Entity* self, Entity* obstacle, int* dx, int
 		mob = (Mob*)(obstacle->child);
 		mob->health -= bullet->damage;
 	}
+	else if (self == player) main_player->health -= bullet->damage;
+
 	kill_entity(self);
 	return "Reduse_Hp";
 }
@@ -241,10 +243,7 @@ const char* Plant_Grow_phase2_Action(Entity* self, int tick) {
 		plant->phase++;
 		plant->drop_items_id[0] = 3;
 		plant->drop_items_id[1] = (rand() % 5 > 3) ? 5 : -1;
-		//self->loop_action = NULL;
 	}
-	
-
 	return "Grow process";
 }
 
@@ -317,12 +316,21 @@ const char* Attack_by_hit_Action(Entity* self, Entity* obstacle, int* dx, int* d
 	return "Attack by hit";
 }
 
+const char* Mob_check_self_Action(Entity* self, int tick) {
+	Mob* self_mob = (Mob*)self->child;
+	if (self_mob->health <= 0) {
+		kill_mob(self_mob);
+		return "0";
+	}
+	return "1";
+}
+
 const char* Mob_Loop_Action_1(Entity* self, int tick) {//I don't know how to use the tick
 	int target[2] = {};
 	int step = 3;
 	Mob* self_mob = (Mob*)self->child;
 
-	if (self_mob->health <= 0) kill_mob(self_mob);
+	if (Mob_check_self_Action(self, tick)[0] == '0') return "Dead";
 	if (can_see(self, player, 200) != NULL) {
 		setTarget(self, "Points", player->center_x, player->center_y);
 	}

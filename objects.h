@@ -110,6 +110,7 @@ const char* Move_to_Target_Action(Entity* self, int tick);
 const char* Move_by_line_Action(Entity* self, int tick);
 const char* Reload_Gun_Action(Entity* self, int tick);
 const char* Mob_Loop_Action_1(Entity* self, int tick);
+const char* Mob_check_self_Action(Entity* self, int tick);
 void drop_items_death_action(int* id_arr, int, int);
 
 Item* increase_player_hp(Item* self, int x, int y);
@@ -197,7 +198,6 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 		self->damage = points;
 		self->distance = default_attack_distance;
 		self->use = hit_with_tool;
-		
 		break;
 	case GUN:
 		self->damage = points;
@@ -218,15 +218,19 @@ void spawn_item_apple(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); 
 
 void spawn_item_banana(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, banana_png, FOOD, 30); }
 
-void spawn_item_aidkit(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, banana_png, HP, 40); }
+void spawn_item_aidkit(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, aidkit_png, HP, 40); }
 
 void spawn_item_axe(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, axe_png, WEAPON, 25); }
+
+void spawn_item_pickaxe(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, pickaxe_png, WEAPON, 35); }
 
 void spawn_item_sword(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, sword_png, WEAPON, 35); }
 
 void spawn_item_log(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, log_item_png, _ITEM, 0); }
 
 void spawn_item_row_meat(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, row_meat_item_png, FOOD, 40); }
+
+void spawn_item_stone(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, stone_item_png, _ITEM, 0); }
 
 void spawn_small_gun(int x, int y) {
 	static Item* self;
@@ -265,7 +269,16 @@ Mob* init_mob(int x, int y, int height, LPCTSTR picture, const char* (*loop_acti
 	self->parent = registerEntity(x, y, height, "Mob", picture, loop_action, collision_action, "Prop:", "Square", x + 15, y + 15, height - 30);
 	self->parent->child = (void*)self;
 	self->reload_time = 30;
+	memset(self->drop_items_id, -1, sizeof(int) * 3);
 	return self;
+}
+
+void spawn_stone(int x, int y) {
+	Mob* stone = init_mob(x, y, 120, stone_png, Mob_check_self_Action, NULL);
+	stone->parent->movable = false;
+	stone->stand_figure = stone_png;
+	stone->health = 100;
+	stone->drop_items_id[0] = 12;
 }
 
 void spawn_mob_Star(int x, int y) {

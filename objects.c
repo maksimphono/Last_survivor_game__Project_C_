@@ -14,7 +14,9 @@ void (*spawners[19])(int, int) = {
 	spawn_item_aidkit,
 	spawn_item_axe,
 	spawn_item_sword,
-	spawn_item_banana
+	spawn_item_banana,
+	spawn_item_stone,
+	spawn_item_pickaxe
 };
 
 void spawnById(int id, int x, int y) {
@@ -62,17 +64,16 @@ void createObjects00(GameField* gf) {
 
 	init_item(70, 230, magicstone1_png, _ITEM, 0);
 
-	init_item(70, 330, axe_png, WEAPON, 20);
-	init_item(110, 330, sword_png, WEAPON, 35);
+	spawn_item_axe(70, 330);
+	spawn_item_sword(110, 330);
 	spawn_rifle(150, 330);
 	spawn_small_gun(310, 140);
-	init_item(70, 380, apple_png, FOOD, 20);
-	init_item(70, 380, aidkit_png, HP, 30);
-	init_item(110, 380, banana_png, FOOD, 50);
-	init_item(150, 380, icecream_png, FOOD, 20);
-	//init_item(310, 140, gun_png, GUN, 20);
+	spawn_item_apple(70, 380);
+	spawn_item_aidkit(70, 380);
+	spawn_item_banana(110, 380);
 
-	//init_mob(330, 130, 50, mob_star_png, Mob_Walk_Action_1);
+	spawn_stone(350, 330);
+
 	spawn_mob_Star(330, 130);
 
 	init_player(200, 100);
