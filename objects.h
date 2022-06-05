@@ -28,6 +28,7 @@ struct Item {
 			int distance;
 			int reload_time;
 			int reload;
+			int track[4];
 		};
 	};
 	Item* (*use)(Item* self, int x, int y);
@@ -137,14 +138,12 @@ Plant* init_plant(int x, int y, int time, int height, LPCTSTR figure0_path, LPCT
 	self->start_grow = tick;
 	self->health = PLANT_HP;
 	memset(self->drop_items_id, -1, sizeof(int) * 3);
-	self->drop_items_id[0] = 4;
 	self->death_action = drop_items_death_action;
 	return self;
 }
 
 void spawn_oak_tree_3(int x, int y) {
 	Plant* tree = init_plant(x, y, 900, 100, oaktree4_1_png, oaktree4_2_png, oaktree4_3_png, 20, 10);
-	tree->drop_items_id[1] = (rand() % 5 > 3) ? 6 : -1;
 }
 
 void spawn_oak_tree_2(int x, int y) {
@@ -198,10 +197,12 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 		self->damage = points;
 		self->distance = default_attack_distance;
 		self->use = hit_with_tool;
+		
 		break;
 	case GUN:
 		self->damage = points;
 		self->parent->loop_action = Reload_Gun_Action;
+		memset(self->track, 0, sizeof(int) * 4);
 		break;
 	case HP:
 		self->health_points = points;
@@ -213,17 +214,30 @@ Item* init_item(int x, int y, LPCTSTR path, ItemType type, int points) {
 	return self;
 }
 
-Item* spawn_small_gun(int x, int y) {
+void spawn_item_apple(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, apple_png, FOOD, 25);}
+
+void spawn_item_banana(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, banana_png, FOOD, 30); }
+
+void spawn_item_aidkit(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, banana_png, HP, 40); }
+
+void spawn_item_axe(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, axe_png, WEAPON, 25); }
+
+void spawn_item_sword(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, sword_png, WEAPON, 35); }
+
+void spawn_item_log(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, log_item_png, _ITEM, 0); }
+
+void spawn_item_row_meat(int x, int y) { Item* self = (Item*)malloc(sizeof(Item)); self = init_item(x, y, row_meat_item_png, FOOD, 40); }
+
+void spawn_small_gun(int x, int y) {
 	static Item* self;
 	self = (Item*)malloc(sizeof(Item));
 	self = init_item(x, y, gun_png, GUN, 20);
 	self->reload_time = 30;
 	self->reload = 30;
 	self->use = shoot_gun;
-	return self;
 }
 
-Item* spawn_rifle(int x, int y) {
+void spawn_rifle(int x, int y) {
 	static Item* self;
 	self = (Item*)malloc(sizeof(Item));
 	self = init_item(x, y, rifle_png, GUN, 40);
@@ -231,7 +245,6 @@ Item* spawn_rifle(int x, int y) {
 	self->reload = 40;
 	self->use = shoot_rifle;
 	self->distance = 300;
-	return self;
 }
 
 Bullet* init_bullet(int center_x, int center_y, int target_x, int target_y, int damage) {
@@ -255,7 +268,7 @@ Mob* init_mob(int x, int y, int height, LPCTSTR picture, const char* (*loop_acti
 	return self;
 }
 
-Mob* spawn_mob_Star(int x, int y) {
+void spawn_mob_Star(int x, int y) {
 	static Mob* self;
 	self = (Mob*)malloc(sizeof(Mob));
 	self = init_mob(x, y, mobStar.figure_height, mobStar.stand_figure, Mob_Loop_Action_1, Attack_by_hit_Action);
@@ -267,9 +280,8 @@ Mob* spawn_mob_Star(int x, int y) {
 	self->attack_figure = mobStar.attack_figure;
 	self->stand_figure = mobStar.stand_figure;
 	memset(self->drop_items_id, -1, sizeof(int) * 3);
-	self->drop_items_id[0] = 5;
+	self->drop_items_id[0] = 4;
 	self->death_action = drop_items_death_action;
-	return self;
 }
 
 bool collect_item(Item* self) {

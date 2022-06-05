@@ -1,31 +1,25 @@
 //#include "objects.h"
 #include "actions.h"
+#define MAX_SPAWNER_NUMBER 29
 
-const int spawn_oak_tree_3_id = 2;
+void (*spawners[19])(int, int) = {
+	spawn_mob_Star,
+	spawn_oak_tree_3,
+	spawn_oak_tree_2,
+	spawn_item_log,
+	spawn_item_row_meat,
+	spawn_item_apple,
+	spawn_small_gun,
+	spawn_rifle,
+	spawn_item_aidkit,
+	spawn_item_axe,
+	spawn_item_sword,
+	spawn_item_banana
+};
 
 void spawnById(int id, int x, int y) {
-	switch (id) {
-	case 1:
-		spawn_mob_Star(x, y);
-		break;
-	case 2:
-		spawn_oak_tree_3(x, y);
-		break;
-	case 3:
-		spawn_oak_tree_2(x, y);
-		break;
-	case 4:
-		init_item(x, y, log_item_png, _ITEM, 0);
-		break;
-	case 5:
-		init_item(x, y, row_meat_item_png, FOOD, 35);
-		break;
-	case 6:
-		init_item(x, y, apple_png, FOOD, 20);
-		break;
-	default:
-		return;
-	}
+	if (id < 0 || id > MAX_SPAWNER_NUMBER) return;
+	spawners[id](x, y);
 }
 
 void createObjects00(GameField* gf) {

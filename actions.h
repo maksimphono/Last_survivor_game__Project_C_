@@ -65,30 +65,29 @@ Item* shoot_gun(Item* gun, int x, int y) {
 Item* shoot_rifle(Item* gun, int x, int y) {
 	Entity* prey;
 	Vector* attack_vector;
+	COLLISION_SIDE side;
+	double axis, dY, dX, step_y, step_x;
+	
 	if (!gun->reload) {
 		gun->reload = gun->reload_time;
-		//Bullet* bullet = init_bullet(main_player->parent->center_x, main_player->parent->center_y, x, y, gun->damage);
-		//bullet->dstep = 20;
-		//bullet->parent->loop_action = Move_to_Target_Action;
-		
-		//prey = can_see(player, player, 100);
-		double axis = (double)(y - player->center_y) / (double)(x - player->center_x);
-		double dY = ((gun->distance) * sin(atan(axis)));
-		double dX = dY / axis;
-		int step_y = (int)round(dY);
-		int step_x = (int)round(dX);
+		axis = (double)(y - player->center_y) / (double)(x - player->center_x);
+		dY = ((gun->distance) * sin(atan(axis)));
+		dX = dY / axis;
+		step_y = (int)round(dY);
+		step_x = (int)round(dX);
 
 		if (x < player->center_x) {	// if point lies by left and up !!! I also have to realize when point lies by left and down !!!
 			step_y = -step_y;
 			step_x = -step_x;
 		}
 		attack_vector = init_vector(player->center_x, player->center_y, player->center_x + step_x, player->center_y + step_y);
-		COLLISION_SIDE side = (player->center_x < x) ? RIGHT : LEFT;
-		Entity* prey = check_collision_line_with_all(attack_vector, player, 3, side);
-		line(attack_vector->p1->X, attack_vector->p1->Y, attack_vector->p2->X, attack_vector->p2->Y);
+		side = (player->center_x < x) ? RIGHT : LEFT;
+		prey = check_collision_line_with_all(attack_vector, player, 3, side);
+		gun->track[0] = player->center_x; gun->track[1] = player->center_y; gun->track[2] = attack_vector->p2->X; gun->track[3] = attack_vector->p2->Y;
 		if (prey != NULL)
 			if (prey->name == "Plant") {
 				(*(Plant*)(prey->child)).health -= gun->damage;
+				
 				return gun;
 			}
 			else if (prey->name == "Mob") {
@@ -97,7 +96,9 @@ Item* shoot_rifle(Item* gun, int x, int y) {
 			}
 		side = (player->center_y < y) ? DOWN : UP;
 		prey = check_collision_line_with_all(attack_vector, player, 3, side);
-		if (prey == NULL) return gun;
+		if (prey == NULL) {
+			return gun;
+		}
 		if (prey->name == "Plant") {
 			(*(Plant*)(prey->child)).health -= gun->damage;
 			return gun;
@@ -107,6 +108,7 @@ Item* shoot_rifle(Item* gun, int x, int y) {
 			return gun;
 		}
 	}
+
 	return gun;
 }
 
@@ -179,7 +181,13 @@ const char* Reduce_HP_Bullet_Action(Entity* self, Entity* obstacle, int* dx, int
 
 const char* Reload_Gun_Action(Entity* self, int tick) {
 	Item* gun = (Item*)(self->child);
-	if (gun->reload > 0) gun->reload--;
+	if (gun->reload > 0) {
+		if (gun->track[0] != 0) {
+			setlinecolor(RGB(gun->reload * 30, 0, 0));
+			line(gun->track[0], gun->track[1], gun->track[2], gun->track[3]);
+		}
+		gun->reload--;
+	}
 	return "Reload";
 }
 
@@ -231,6 +239,8 @@ const char* Plant_Grow_phase2_Action(Entity* self, int tick) {
 	if ((tick - plant->start_grow) % plant->time_phase_2 == 0) {
 		setFigure(self, self->figure->height, plant->phase2_figure);
 		plant->phase++;
+		plant->drop_items_id[0] = 3;
+		plant->drop_items_id[1] = (rand() % 5 > 3) ? 5 : -1;
 		//self->loop_action = NULL;
 	}
 	
